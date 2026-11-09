@@ -1,0 +1,87 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="RuneWire"
+config/description="A cartoon RPG of magic and machines: take quests, win challenges, earn gold, build contraptions and fight the Hollow Choir and the Cogwork Legion."
+run/main_scene="res://scenes/main/game.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+boot_splash/bg_color=Color(0.07, 0.06, 0.11, 1)
+config/icon="res://icon.svg"
+
+[autoload]
+
+MCPRuntimeServer="*res://addons/godot_mcp_toolkit/runtime/mcp_runtime_server.gd"
+Events="*res://scripts/autoload/events.gd"
+Settings="*res://scripts/autoload/settings.gd"
+MaterialLib="*res://scripts/autoload/material_library.gd"
+Catalog="*res://scripts/autoload/catalog.gd"
+Game="*res://scripts/autoload/game_state.gd"
+Quests="*res://scripts/autoload/quest_manager.gd"
+Challenges="*res://scripts/autoload/challenge_manager.gd"
+SaveSystem="*res://scripts/autoload/save_system.gd"
+AudioManager="*res://scripts/autoload/audio_manager.gd"
+Dev="*res://scripts/autoload/dev_tools.gd"
+
+[debug]
+
+gdscript/warnings/unused_variable=0
+gdscript/warnings/unused_parameter=0
+gdscript/warnings/shadowed_variable=0
+gdscript/warnings/shadowed_variable_base_class=0
+gdscript/warnings/inference_on_variant=1
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_mcp_toolkit/plugin.cfg")
+
+[layer_names]
+
+3d_physics/layer_1="world"
+3d_physics/layer_2="player"
+3d_physics/layer_3="parts"
+3d_physics/layer_4="enemies"
+3d_physics/layer_5="projectiles"
+3d_physics/layer_6="interactables"
+3d_physics/layer_7="triggers"
+3d_physics/layer_8="debris"
+
+[mcp_toolkit]
+
+server/version="latest"
+
+[physics]
+
+common/max_physics_steps_per_frame=6
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"
+lights_and_shadows/directional_shadow/size=2048
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=1
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=1
+global_illumination/gi/use_half_resolution=true
+textures/default_filters/anisotropic_filtering_level=3
+environment/ssao/quality=1
+environment/ssil/quality=0
+anti_aliasing/screen_space_roughness_limiter/enabled=false
+anti_aliasing/quality/use_debanding=true
+environment/glow/upscale_mode=0
+environment/defaults/default_clear_color=Color(0.45, 0.62, 0.85, 1)
+anti_aliasing/quality/screen_space_aa=1

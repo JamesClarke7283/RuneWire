@@ -1,0 +1,220 @@
+class_name QuestDB
+## All quest definitions. Objective types:
+##   kill(target: enemy id | "faction:magic" | "faction:tech" | "any"), collect(item), reach(location),
+##   talk(npc), buy_part(part|any), buy(item|any), spawn(part|any), weld, build(tag), drive(meters),
+##   altitude(meters), deliver(zone), challenge(challenge id, count = medal tier 1..3)
+
+const NPC_NAMES := {
+	"odda": "Master Artificer Odda",
+	"brannoc": "Captain Brannoc",
+	"lirael": "Maven Lirael",
+	"gus": "Gus Sprocket",
+	"board": "Bounty Board",
+}
+
+const LOCATION_NAMES := {
+	"ley_north": "the Northern Ley Stone",
+	"ley_lake": "the Lake Ley Stone",
+	"ley_east": "the Eastern Ley Stone",
+	"foundry": "the Gearworks Foundry",
+	"shrine_altar": "the Sunken Shrine altar",
+	"watchtower": "the Old Watchtower",
+}
+
+const QUESTS := {
+	# ------------------------------------------------------------------ main story
+	"q_arrival": {
+		"title": "A Spark of Talent", "giver": "odda", "turn_in": "odda", "main": true,
+		"offer": "So YOU'RE the new apprentice. Hmph. Skinny. Still, the Ley says you've got the spark.\n\nEverything in Emberwick is built by hand, and parts cost gold. Open the Build Catalog with [Q], buy something, spawn a couple of pieces, then fuse two together with your Rune Toolkit. Show me you can make a thing that is more than one thing.",
+		"progress": "Catalog's on [Q]. Toolkit's in your belt: select it, set it to Weld, click one part, then the other.",
+		"complete": "Ha! It's ugly, it's wobbly, and it's YOURS. That's how every great machine starts.\n\nTake these wheels and a pilot seat. You'll want them sooner than you think.",
+		"objectives": [
+			{"type": "buy_part", "target": "any", "count": 1, "text": "Buy a part from the Build Catalog [Q]"},
+			{"type": "spawn", "target": "any", "count": 2, "text": "Spawn parts into the world"},
+			{"type": "weld", "count": 1, "text": "Weld two parts with the Rune Toolkit"},
+		],
+		"rewards": {"gold": 60, "xp": 60, "parts": {"wheel": 4, "seat": 1}},
+	},
+	"q_wheels": {
+		"title": "Wheels of Fortune", "giver": "odda", "turn_in": "odda", "main": true, "prereq": ["q_arrival"],
+		"offer": "Walking is for people without imagination. Build me a vehicle: a frame, a Pilot Seat and at least three wheels, all welded together. Then take it for a spin. A proper spin, mind. Over a hundred metres.",
+		"progress": "Seat, frame, three wheels, all welded. Sit with [E], drive with WASD. Don't hit the fountain.",
+		"complete": "Look at that! Mud on the tyres and a grin on your face. Here, I've drawn up a Brute Wheel blueprint for you. Bigger is better.",
+		"objectives": [
+			{"type": "build", "target": "vehicle", "count": 1, "text": "Build a vehicle (seat + 3 wheels)"},
+			{"type": "drive", "count": 120, "text": "Drive your vehicle"},
+		],
+		"rewards": {"gold": 150, "xp": 120, "unlock_parts": ["big_wheel"]},
+	},
+	"q_wisps": {
+		"title": "Will-o'-the-Whoops", "giver": "brannoc", "turn_in": "brannoc", "main": true, "prereq": ["q_arrival"],
+		"offer": "RECRUIT! Ember Wisps have been drifting out of the Whispering Woods, west of town, and setting fire to Mrs. Pell's laundry. AGAIN.\n\nGo snuff out five of them and bring back two Ember Essences so the Maven can study them. Arcane bolts work, but bullets work better on spirits!",
+		"progress": "The woods are west of the plaza. Wisps hate kinetic weapons. Rivets, recruit. RIVETS.",
+		"complete": "Five wisps and two jars of angry fire! The laundry thanks you, and so does the Guard. Take these tonics. You look singed.",
+		"objectives": [
+			{"type": "kill", "target": "wisp", "count": 5, "text": "Defeat Ember Wisps"},
+			{"type": "collect", "target": "ember_essence", "count": 2, "text": "Collect Ember Essence"},
+		],
+		"rewards": {"gold": 130, "xp": 150, "items": {"health_tonic": 3}},
+	},
+	"q_scrap": {
+		"title": "Scrap Happy", "giver": "gus", "turn_in": "gus", "main": true, "prereq": ["q_wheels"],
+		"offer": "*whirr-click* HELLO FRIEND! Gus has a wonderful idea that needs six Scrap Gears. The rogue Cogwork drones up at the Gearworks are FULL of them. Rude of them to keep them, really.\n\nBring Gus six gears and Gus will teach you to build Steam Thrusters! Whoosh!",
+		"progress": "Six Scrap Gears, please! Drones, crawlers and sentries drop them. The Gearworks is north-east. Tech foes HATE lightning. *bzzt*",
+		"complete": "Six beautiful gears! *happy beeping* Here is the Steam Thruster blueprint. Strap one to anything and it will go somewhere. Probably forward!",
+		"objectives": [
+			{"type": "collect", "target": "scrap_gear", "count": 6, "text": "Collect Scrap Gears"},
+		],
+		"rewards": {"gold": 180, "xp": 200, "unlock_parts": ["thruster"]},
+	},
+	"q_survey": {
+		"title": "Ley of the Land", "giver": "lirael", "turn_in": "lirael", "main": true, "prereq": ["q_wisps"],
+		"offer": "The wisps are a symptom, little spark. Something is pulling on the ley lines, and the Choir is singing again.\n\nThree ley stones ring this valley: one north, one on the lake island to the west, one on the eastern hills. Touch each of them and the stones will whisper to me. In return I'll teach you to make stone float.",
+		"progress": "North, the lake island and the eastern hills. The stones glow teal. You cannot miss them, unless you are trying to.",
+		"complete": "Yes... I hear them. They are frightened. The Choir is at the Sunken Shrine.\n\nHere is the Levitation Stone. Weld a few under a deck, add a seat, and you will glide like a thought.",
+		"objectives": [
+			{"type": "reach", "target": "ley_north", "count": 1, "text": "Touch the Northern Ley Stone"},
+			{"type": "reach", "target": "ley_lake", "count": 1, "text": "Touch the Lake Ley Stone"},
+			{"type": "reach", "target": "ley_east", "count": 1, "text": "Touch the Eastern Ley Stone"},
+		],
+		"rewards": {"gold": 160, "xp": 220, "unlock_parts": ["hover_stone"]},
+	},
+	"q_cargo": {
+		"title": "Heavy Lifting", "giver": "odda", "turn_in": "odda", "main": true, "prereq": ["q_scrap"],
+		"offer": "The old Watchtower's ward lamp is dead, and the lookouts can't see the Legion coming. I've packed a Ley Crystal into a crate behind the Workshop. It's far too heavy to carry by hand.\n\nBuild something that can haul it to the Watchtower, south-west of town. Weld it to a cart, sling it under a hover deck, I don't care. Just don't drop it in the lake.",
+		"progress": "The cargo crate is behind the Workshop. The Watchtower is south-west. Weld the crate to your vehicle so it doesn't bounce off.",
+		"complete": "The lamp's lit! I could see it from here. Proper engineering, that. You've earned my Lift Rotor blueprint. Mind your fingers.",
+		"objectives": [
+			{"type": "deliver", "target": "watchtower", "count": 1, "text": "Deliver the Ley Crystal to the Watchtower"},
+		],
+		"rewards": {"gold": 300, "xp": 300, "unlock_parts": ["rotor"]},
+	},
+	"q_golems": {
+		"title": "Stone Cold", "giver": "lirael", "turn_in": "lirael", "main": true, "prereq": ["q_survey"],
+		"offer": "The Choir has woken the old shrine guardians. Rune Golems: stone bodies stitched together with stolen ley-light. Two of them now prowl the Sunken Shrine, north-west.\n\nBreak them. Kinetic force cracks stone; arcane magic only tickles them. Do this and I will teach you to build an Arcane Turret.",
+		"progress": "Two golems at the Sunken Shrine. Hit them with rivets and bombs, keep moving, and never stand where their fists are going.",
+		"complete": "The guardians sleep again. Their shards sing a very sad song. Take the Arcane Turret blueprint. Let it guard what you build.",
+		"objectives": [
+			{"type": "kill", "target": "golem", "count": 2, "text": "Shatter Rune Golems at the Sunken Shrine"},
+		],
+		"rewards": {"gold": 260, "xp": 350, "unlock_parts": ["arcane_turret"]},
+	},
+	"q_arena": {
+		"title": "Trial of Echoes", "giver": "brannoc", "turn_in": "brannoc", "main": true, "prereq": ["q_wisps"],
+		"offer": "Every Emberwick guard proves themselves in the Arena of Echoes, east of town. Waves of conjured foes, magic AND machine. Survive at least three waves and earn a bronze medal, and I'll hand you the Rivet Gatling blueprint myself.\n\nBuild defences, bring tonics, and remember: fight magic with machines, and machines with magic!",
+		"progress": "The Arena is east of the plaza. Use the challenge terminal at the gate to begin.",
+		"complete": "HA! The crowd's still cheering! Here's the Rivet Gatling. Bolt it to anything. And welcome to the Guard, Runewright.",
+		"objectives": [
+			{"type": "challenge", "target": "arena", "count": 1, "text": "Earn a medal in the Arena of Echoes"},
+		],
+		"rewards": {"gold": 280, "xp": 380, "unlock_parts": ["rivet_turret"]},
+	},
+	"q_foundry": {
+		"title": "Heart of the Foundry", "giver": "brannoc", "turn_in": "brannoc", "main": true, "prereq": ["q_cargo", "q_arena"],
+		"offer": "Thanks to that watchtower lamp, we finally saw what's been building the Legion: a walking war-engine, the IRONCLAD WARWALKER, stomping around the Gearworks Foundry.\n\nGo to the Foundry and bring it down. Lightning fries its circuits. Bring friends. Well, bring turrets. You know what I mean!",
+		"progress": "The Ironclad prowls the Gearworks, north-east. Lightning and arcane hit it hardest. Its glowing eye is a weak spot!",
+		"complete": "The Warwalker is scrap! The Legion is leaderless! Take the Ward Pylon blueprint. Odda says it's the best thing she ever designed, so don't tell her I gave it away.",
+		"objectives": [
+			{"type": "reach", "target": "foundry", "count": 1, "text": "Enter the Gearworks Foundry"},
+			{"type": "kill", "target": "ironclad", "count": 1, "text": "Destroy the Ironclad Warwalker"},
+		],
+		"rewards": {"gold": 700, "xp": 800, "unlock_parts": ["ward_pylon"]},
+	},
+	"q_choir": {
+		"title": "Hush the Choir", "giver": "lirael", "turn_in": "lirael", "main": true, "prereq": ["q_golems", "q_foundry"],
+		"offer": "Now the Choir's conductor reveals itself: the HOLLOW ARCHON, singing the ley lines out of tune from the Sunken Shrine's altar. If its song finishes, every spark in Emberwick goes dark.\n\nGo to the altar, little spark. Interrupt the song. Permanently. Machines and kinetic force will find its hollow heart.",
+		"progress": "The Archon waits on the Shrine altar, north-west. It summons wisps and wraiths. Keep moving, and use everything you've built.",
+		"complete": "Silence... and then the stones begin to hum again, in tune. You did it, Runewright. Emberwick will sing about this, quietly and on key.\n\nThe valley is yours to tinker with. Build something wonderful.",
+		"objectives": [
+			{"type": "reach", "target": "shrine_altar", "count": 1, "text": "Climb to the Shrine altar"},
+			{"type": "kill", "target": "archon", "count": 1, "text": "Defeat the Hollow Archon"},
+		],
+		"rewards": {"gold": 1000, "xp": 1200},
+	},
+	# ------------------------------------------------------------------ side quests
+	"q_marksman": {
+		"title": "Steady Hands", "giver": "brannoc", "turn_in": "brannoc", "prereq": ["q_arrival"],
+		"offer": "A guard who can't hit a barn door is a liability, recruit! The Target Range is just east of the plaza. Earn a SILVER medal and I'll make it worth your while.",
+		"progress": "Target Range, east side of town. Silver medal. Breathe, aim, zap.",
+		"complete": "Silver! Those targets never stood a chance. Here's your pay.",
+		"objectives": [{"type": "challenge", "target": "targets", "count": 2, "text": "Earn a silver medal at the Target Range"}],
+		"rewards": {"gold": 150, "xp": 160},
+	},
+	"q_rally": {
+		"title": "Rally Ho!", "giver": "gus", "turn_in": "gus", "prereq": ["q_wheels"],
+		"offer": "*excited whirring* Gus LOVES the Valley Rally! Twelve rune rings across the valley, as fast as you can go! The start terminal is south of the plaza. Finish with any medal and Gus will give you a prize!",
+		"progress": "The rally terminal is south of the plaza. Vehicles allowed! Encouraged! Mandatory for winning!",
+		"complete": "VROOOM! What a run! Gus is so proud. Here, some gold and fizzy mana drinks!",
+		"objectives": [{"type": "challenge", "target": "race", "count": 1, "text": "Finish the Valley Rally with a medal"}],
+		"rewards": {"gold": 180, "xp": 200, "items": {"mana_draught": 2}},
+	},
+	"q_sky": {
+		"title": "Head in the Clouds", "giver": "odda", "turn_in": "odda", "prereq": ["q_survey"],
+		"offer": "Now that you've got hover stones, let's see some real ambition. Get any contraption you're piloting thirty metres off the ground. Rotors, stones, an unreasonable number of thrusters... surprise me.",
+		"progress": "Thirty metres up while piloting. Whatever you build, build it a parachute. Joking. Mostly.",
+		"complete": "I saw you from the Workshop roof! Higher than the church bell. Here, that's flight pay.",
+		"objectives": [{"type": "altitude", "count": 30, "text": "Pilot a contraption 30 m above the ground"}],
+		"rewards": {"gold": 200, "xp": 220},
+	},
+	"q_haul": {
+		"title": "Gorge-ous Engineering", "giver": "odda", "turn_in": "odda", "prereq": ["q_cargo"],
+		"offer": "The Gorge Haul challenge, south-east, is the real engineer's test: get a crate across the canyon and onto the goal pad. Bridge it, fly it, catapult it. Earn any medal.",
+		"progress": "The Gorge Haul terminal is by the canyon, south-east of town.",
+		"complete": "Across the gorge in one piece! Well. Mostly one piece. Good work.",
+		"objectives": [{"type": "challenge", "target": "cargo", "count": 1, "text": "Earn a medal in the Gorge Haul"}],
+		"rewards": {"gold": 220, "xp": 240},
+	},
+	"q_beacon": {
+		"title": "Skyward", "giver": "lirael", "turn_in": "lirael", "prereq": ["q_sky"],
+		"offer": "Above the Builder's Flats floats an old ley beacon, forty metres up. Touch it in time and the sky remembers you. Earn any medal in the Skyward Beacon trial.",
+		"progress": "The beacon trial begins at the terminal on the Builder's Flats, south of town.",
+		"complete": "The beacon sang your name. It's a very short song. Well done.",
+		"objectives": [{"type": "challenge", "target": "altitude", "count": 1, "text": "Earn a medal in the Skyward Beacon trial"}],
+		"rewards": {"gold": 200, "xp": 220},
+	},
+	# ------------------------------------------------------------------ repeatable bounties
+	"b_wisps": {"title": "Bounty: Ember Cull", "giver": "board", "turn_in": "board", "repeatable": true,
+		"offer": "WANTED: 6 Ember Wisps, snuffed. Reward 70 gold. (They keep lighting the hay.)",
+		"objectives": [{"type": "kill", "target": "wisp", "count": 6, "text": "Defeat Ember Wisps"}],
+		"rewards": {"gold": 70, "xp": 60}},
+	"b_drones": {"title": "Bounty: Drone Downing", "giver": "board", "turn_in": "board", "repeatable": true,
+		"offer": "WANTED: 5 Scout Drones, grounded. Reward 80 gold. Signed, everyone who has been buzzed at breakfast.",
+		"objectives": [{"type": "kill", "target": "drone", "count": 5, "text": "Destroy Scout Drones"}],
+		"rewards": {"gold": 80, "xp": 70}},
+	"b_crawlers": {"title": "Bounty: Crawler Sweep", "giver": "board", "turn_in": "board", "repeatable": true, "prereq": ["q_wheels"],
+		"offer": "WANTED: 6 Clank Crawlers, de-legged. Reward 90 gold.",
+		"objectives": [{"type": "kill", "target": "crawler", "count": 6, "text": "Destroy Clank Crawlers"}],
+		"rewards": {"gold": 90, "xp": 80}},
+	"b_wraiths": {"title": "Bounty: Shade Banishing", "giver": "board", "turn_in": "board", "repeatable": true, "prereq": ["q_survey"],
+		"offer": "WANTED: 3 Shade Wraiths, banished. Reward 100 gold. Bring a lantern.",
+		"objectives": [{"type": "kill", "target": "wraith", "count": 3, "text": "Banish Shade Wraiths"}],
+		"rewards": {"gold": 100, "xp": 90}},
+	"b_cultists": {"title": "Bounty: Hush Money", "giver": "board", "turn_in": "board", "repeatable": true, "prereq": ["q_survey"],
+		"offer": "WANTED: 4 Choir Cultists, quieted. Reward 110 gold.",
+		"objectives": [{"type": "kill", "target": "cultist", "count": 4, "text": "Defeat Choir Cultists"}],
+		"rewards": {"gold": 110, "xp": 100}},
+	"b_sentries": {"title": "Bounty: Sentry Scrapping", "giver": "board", "turn_in": "board", "repeatable": true, "prereq": ["q_scrap"],
+		"offer": "WANTED: 2 Gearworks Sentries, scrapped. Reward 120 gold. Approach from the side!",
+		"objectives": [{"type": "kill", "target": "sentry", "count": 2, "text": "Destroy Sentry Turrets"}],
+		"rewards": {"gold": 120, "xp": 110}},
+	"b_golem": {"title": "Bounty: Rock Bottom", "giver": "board", "turn_in": "board", "repeatable": true, "prereq": ["q_golems"],
+		"offer": "WANTED: 1 Rune Golem, gravel-ised. Reward 140 gold.",
+		"objectives": [{"type": "kill", "target": "golem", "count": 1, "text": "Shatter a Rune Golem"}],
+		"rewards": {"gold": 140, "xp": 130}},
+	"b_magic": {"title": "Bounty: Spellbreaker", "giver": "board", "turn_in": "board", "repeatable": true, "prereq": ["q_wisps"],
+		"offer": "WANTED: 10 creatures of the Hollow Choir, any kind. Reward 120 gold.",
+		"objectives": [{"type": "kill", "target": "faction:magic", "count": 10, "text": "Defeat Hollow Choir foes"}],
+		"rewards": {"gold": 120, "xp": 120}},
+	"b_tech": {"title": "Bounty: Scrapper", "giver": "board", "turn_in": "board", "repeatable": true, "prereq": ["q_scrap"],
+		"offer": "WANTED: 10 machines of the Cogwork Legion, any kind. Reward 120 gold.",
+		"objectives": [{"type": "kill", "target": "faction:tech", "count": 10, "text": "Destroy Cogwork Legion machines"}],
+		"rewards": {"gold": 120, "xp": 120}},
+}
+
+const NPC_GREETINGS := {
+	"odda": ["Mind the sparks.", "If it isn't on fire, you're not trying hard enough.", "Gold buys parts. Parts build dreams. Dreams pay rent. Roughly."],
+	"brannoc": ["Stand up straight, recruit!", "The Guard never sleeps! I nap. Vigilantly.", "Magic foes? Bring machines. Machine foes? Bring magic!"],
+	"lirael": ["The ley lines hum for you today.", "Every spell is a question the world agrees to answer.", "Do mind the hat. It has opinions."],
+	"gus": ["*whirr* Hello, friend! Buying? Gus hopes buying!", "Gus has gizmos! Gus has gadgets! Gus has a loose bolt somewhere!", "Lightning on robots: very rude, very effective. *bzzt*"],
+	"board": ["Notices flutter in the breeze."],
+}
