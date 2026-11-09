@@ -68,7 +68,7 @@ func run(m: Node) -> void:
 		e.aggro = false
 		foes.append(e)
 	await wait(0.8)
-	p.select_slot(Game.hotbar.find("arcane_bolt"))
+	p.select_slot(1 if Game.loadout_weapon(1).get("base", "") == "arcane_bolt" else 0)
 	for i in 3:
 		p.current.primary(true)
 		p.current.primary(false)

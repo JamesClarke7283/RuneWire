@@ -25,6 +25,10 @@ func build(w: World) -> void:
 	_ley_stones()
 	_race()
 	_lake()
+	_sky_islands()
+	_treasure()
+	_crystal_nodes()
+	_gather_nodes()
 	_spawners()
 	Quests.quest_accepted.connect(_on_quest_accepted)
 
@@ -36,6 +40,22 @@ func gp(x: float, z: float, lift: float = 0.0) -> Vector3:
 
 func place(model: String, x: float, z: float, yaw: float = 0.0, scl: float = 1.0, lift: float = 0.0) -> Node3D:
 	return Props.place(world.props_root, model, gp(x, z, lift), yaw, scl)
+
+
+## The flattest dry spot within `radius` of p (keeps chests and crystals off cliffs and out of water).
+func settle(p: Vector2, radius: float = 6.0) -> Vector2:
+	var t := world.terrain
+	var best := p
+	var best_score := INF
+	for i in 25:
+		var q := p if i == 0 else p + Vector2.from_angle(i * 2.39996) * radius * sqrt(i / 24.0)
+		if t.height_at(q.x, q.y) < 0.8:
+			continue
+		var score := t.slope_at(q.x, q.y) * 10.0 + q.distance_to(p) * 0.05
+		if score < best_score:
+			best_score = score
+			best = q
+	return best
 
 
 ## Yaw (degrees) that makes a model's front (+Z) face a target point.
@@ -142,6 +162,14 @@ func _town() -> void:
 					continue
 				var lp2 := p + n * 4.5 * (1 if s % 2 == 0 else -1)
 				place("prop_street_lamp", lp2.x, lp2.y, face(lp2, p))
+	# crafting stations: Workbench and Forge by Odda, Alchemy Table and Altar by Lirael, Loom by the stalls
+	for sid in WorldLayout.STATIONS:
+		var sp2: Vector2 = WorldLayout.STATIONS[sid]
+		var sm := place(str(Catalog.STATIONS[sid]["model"]), sp2.x, sp2.y, face(sp2, c))
+		var st := Workbench.new() if sid == "workbench" else CraftingStation.new()
+		st.station = sid
+		st.name = "Station_" + sid
+		sm.add_child(st)
 	# villagers
 	var vill := [Vector2(-10, -10), Vector2(12, -14), Vector2(-16, 6), Vector2(4, 22)]
 	for i in vill.size():
@@ -216,7 +244,10 @@ func _foundry() -> void:
 	place("prop_pipes", c.x + 24, c.y - 10, 0)
 	place("prop_conveyor", c.x + 4, c.y - 16, 0)
 	for p in [Vector2(-12, -24), Vector2(14, -26), Vector2(30, 16), Vector2(-34, 22), Vector2(4, 32)]:
-		place("prop_scrap_pile", c.x + p.x, c.y + p.y, randf() * 360.0)
+		var pile := place("prop_scrap_pile", c.x + p.x, c.y + p.y, randf() * 360.0)
+		var hn := HarvestNode.new()
+		hn.kind = "scrap"
+		pile.add_child(hn)
 	place("prop_crate_stack", c.x + 10, c.y - 20, 15)
 	place("prop_barrels", c.x - 8, c.y - 22, 0)
 	add_trigger("foundry", gp(c.x, c.y), 46.0)
@@ -321,17 +352,24 @@ func _ley_stones() -> void:
 		t.toast_text = "The ley stone hums as you touch it..."
 
 
+const RING_LIFT := 4.8   # race ring centre above the ground (outer radius 4.48: the rim clears uneven ground)
+
+
 func _race() -> void:
 	var start: Vector2 = WorldLayout.POIS["race_start"]["pos"]
-	var term := _terminal("race", start, face(start, Vector2(WorldLayout.RACE_RINGS[0].x, WorldLayout.RACE_RINGS[0].z)))
+	var term := _terminal("race", start, face(start, Vector2(WorldLayout.RACE_RINGS[0].x, WorldLayout.RACE_RINGS[0].y)))
 	var ch := RaceChallenge.new()
 	term.add_child(ch)
 	var rings := []
 	for i in WorldLayout.RACE_RINGS.size():
+		# RACE_RINGS hold Vector3(x, z, _). This used to read them as (x, height, z), which stacked the rings
+		# from underground to 140 m up instead of looping the valley. Every ring stands with its rim just
+		# above the ground (centre 4.8 m up), so the "fly or drive" rally is drivable: the pass check is
+		# 5.5 m from the centre, which a driver's camera reaches from the ground.
 		var r: Vector3 = WorldLayout.RACE_RINGS[i]
 		var nxt: Vector3 = WorldLayout.RACE_RINGS[(i + 1) % WorldLayout.RACE_RINGS.size()]
-		var pos := gp(r.x, r.z, r.z * 0.0 + r.y + 4.5)
-		var yaw := face(Vector2(r.x, r.z), Vector2(nxt.x, nxt.z))
+		var pos := gp(r.x, r.y, RING_LIFT)
+		var yaw := face(Vector2(r.x, r.y), Vector2(nxt.x, nxt.y))
 		var ring := Props.place(world.props_root, "prop_race_ring", pos, yaw, 1.0)
 		rings.append(ring)
 	ch.rings = rings
@@ -342,15 +380,125 @@ func _lake() -> void:
 	var island: Vector2 = WorldLayout.POIS["island"]["pos"]
 	place("tree_oak_small", island.x - 3.0, island.y - 2.0, 0)
 	place("rock_b", island.x + 4.0, island.y - 3.0, 40)
-	# a little pier on the east shore
-	var shore := Vector2(-128, 8)
-	place("prop_bridge", shore.x, shore.y, 90.0, 1.0, -0.6)
+	# a little pier on the east shore, out over the water (it used to run along the bank, under trees)
+	var pier: Vector2 = WorldLayout.LAKE_PIER["pos"]
+	Props.place(world.props_root, "prop_bridge", Vector3(pier.x, float(WorldLayout.LAKE_PIER["y"]), pier.y), float(WorldLayout.LAKE_PIER["yaw"]))
+
+
+# ------------------------------------------------------------------ treasure & gathering
+var sky_tops: Dictionary = {}   # sky island id -> Vector3 centre of its walkable top
+
+
+func _sky_islands() -> void:
+	for id in WorldLayout.SKY_ISLANDS:
+		var d: Dictionary = WorldLayout.SKY_ISLANDS[id]
+		var p: Vector2 = d["pos"]
+		var top := Vector3(p.x, float(d["top"]), p.y)
+		var n: Node3D
+		if Props.exists("prop_sky_island"):
+			n = Props.instance("prop_sky_island")
+		else:
+			n = _sky_island_fallback()
+		n.name = "SkyIsland_" + id
+		world.props_root.add_child(n)
+		n.global_position = top
+		n.rotation.y = randf() * TAU
+		var glow := OmniLight3D.new()
+		glow.light_color = Color(0.35, 0.95, 0.88)
+		glow.light_energy = 2.0
+		glow.omni_range = 12.0
+		n.add_child(glow)
+		glow.position = Vector3(0, -3.0, 0)
+		sky_tops[id] = top
+		for k in 2:
+			var hn := HarvestNode.new()
+			hn.kind = "crystal"
+			world.props_root.add_child(hn)
+			hn.global_position = top + Vector3(cos(k * 2.6 + 0.8), 0, sin(k * 2.6 + 0.8)) * 2.4
+
+
+## Floating island stand-in until the Blender model exists: grassy disc on a rocky cone.
+func _sky_island_fallback() -> Node3D:
+	var root := Node3D.new()
+	var top := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 4.2
+	cm.bottom_radius = 3.9
+	cm.height = 0.8
+	top.mesh = cm
+	top.position.y = -0.4
+	top.material_override = MaterialLib.get_flat(Color("6cc24a"))
+	root.add_child(top)
+	var under := MeshInstance3D.new()
+	var um := CylinderMesh.new()
+	um.top_radius = 3.9
+	um.bottom_radius = 0.4
+	um.height = 4.2
+	under.mesh = um
+	under.position.y = -2.9
+	under.material_override = MaterialLib.get_named("M_StoneRough")
+	root.add_child(under)
+	var body := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = 4.1
+	cyl.height = 0.8
+	cs.shape = cyl
+	cs.position.y = -0.4
+	body.add_child(cs)
+	root.add_child(body)
+	return root
+
+
+func _treasure() -> void:
+	for id in WorldLayout.CHESTS:
+		var d: Dictionary = WorldLayout.CHESTS[id]
+		var p: Vector2 = d["pos"]
+		var pos: Vector3
+		var yaw := 0.0
+		if d.has("sky"):
+			pos = sky_tops.get(d["sky"], Vector3(p.x, 30.0, p.y)) + Vector3(0.0, 0.0, -1.2)
+			yaw = face(Vector2(pos.x, pos.z), Vector2.ZERO)
+		else:
+			var q := settle(p, 6.0)
+			pos = gp(q.x, q.y, -0.04)
+			yaw = face(q, Vector2.ZERO) + randf_range(-25.0, 25.0)
+		var ch := TreasureChest.new()
+		ch.chest_id = id
+		ch.vault = bool(d.get("vault", false))
+		ch.name = "Chest_" + id
+		world.props_root.add_child(ch)
+		ch.global_position = pos
+		ch.rotation.y = deg_to_rad(yaw)
+
+
+## Ore veins, glowcaps, sunpetals and reeds (see WorldLayout.GATHER_NODES).
+func _gather_nodes() -> void:
+	for kind in WorldLayout.GATHER_NODES:
+		for p in WorldLayout.GATHER_NODES[kind]:
+			var q := settle(p, 7.0)
+			var hn := HarvestNode.new()
+			hn.kind = kind
+			hn.name = "Node_%s_%d_%d" % [kind, int(q.x), int(q.y)]
+			world.props_root.add_child(hn)
+			hn.global_position = gp(q.x, q.y, -0.08)
+
+
+func _crystal_nodes() -> void:
+	for c in WorldLayout.CRYSTAL_NODES:
+		var q := settle(c, 5.0)
+		var hn := HarvestNode.new()
+		hn.kind = "crystal"
+		world.props_root.add_child(hn)
+		hn.global_position = gp(q.x, q.y, -0.1)
 
 
 # ------------------------------------------------------------------ enemies
 func _spawners() -> void:
 	var woods: Vector2 = WorldLayout.WOODS["pos"]
 	_spawner("woods", woods, 55.0, {"wisp": 1.0}, 6, 25.0)
+	_spawner("lake_shore", Vector2(-150, 50), 30.0, {"wisp": 0.7, "wraith": 0.3}, 3, 70.0, func(): return Quests.is_done("q_wisps"))
+	_spawner("north_hills", Vector2(20, -192), 32.0, {"crawler": 0.5, "drone": 0.5}, 4, 60.0, func(): return Quests.is_done("q_scrap"))
 	_spawner("woods_night", woods + Vector2(-20, -30), 50.0, {"wraith": 1.0}, 2, 60.0, func(): return Quests.is_done("q_wisps"))
 	var shrine: Vector2 = WorldLayout.POIS["shrine"]["pos"]
 	_spawner("shrine", shrine, 30.0, {"cultist": 0.6, "wraith": 0.4}, 5, 40.0, func(): return Quests.is_done("q_wisps") or Quests.is_active("q_survey"))
@@ -373,6 +521,7 @@ func _spawner(id: String, center: Vector2, radius: float, types: Dictionary, max
 	s.max_alive = max_alive
 	s.respawn_time = respawn
 	s.condition = cond
+	s.level = int(WorldLayout.ZONE_LEVELS.get(id, 1))
 	s.world = world
 	add_child(s)
 	return s
@@ -380,6 +529,8 @@ func _spawner(id: String, center: Vector2, radius: float, types: Dictionary, max
 
 # ------------------------------------------------------------------ quest-driven events
 func on_game_started() -> void:
+	for c in get_tree().get_nodes_in_group("chests"):
+		c.sync_state()
 	for id in Quests.active_quests():
 		_on_quest_accepted(id)
 	if Quests.is_done("q_cargo") and watchtower_lamp:
@@ -411,7 +562,7 @@ func _spawn_boss(kind: String, at: Vector2) -> void:
 	if _boss_spawned.get(kind, false):
 		return
 	_boss_spawned[kind] = true
-	var e := Enemy.spawn(kind, world, gp(at.x, at.y, 0.5))
+	var e := Enemy.spawn(kind, world, gp(at.x, at.y, 0.5), false, int(WorldLayout.ZONE_LEVELS.get(kind, 8)))
 	if e:
 		e.home = e.global_position
 		e.leash = 40.0

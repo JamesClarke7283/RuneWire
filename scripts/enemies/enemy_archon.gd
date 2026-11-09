@@ -63,7 +63,7 @@ func _release_cast() -> void:
 	for i in n:
 		var ang := (float(i) - (n - 1) / 2.0) * 0.16
 		var dir := base_dir.rotated(Vector3.UP, ang)
-		Projectile.spawn(self, cast_point(), dir * 15.0, {"damage": 11.0 * Game.difficulty, "damage_type": "arcane", "color": Color(0.75, 0.4, 1.0),
+		Projectile.spawn(self, cast_point(), dir * 15.0, {"damage": 11.0 * power(), "damage_type": "arcane", "color": Color(0.75, 0.4, 1.0),
 			"size": 0.28, "from_player": false, "source": self, "homing_target": target, "homing_strength": 0.5, "lifetime": 5.0})
 	VFX.sparkle(self, cast_point(), Color(0.75, 0.4, 1.0), 16, 0.4)
 
@@ -76,7 +76,7 @@ func _nova() -> void:
 	AudioManager.play("spell_lightning", p, 4.0, 0.6)
 	if target and target.global_position.distance_to(global_position) < 9.0:
 		var dir := (target.global_position - global_position).normalized()
-		target.apply_damage(DamageInfo.make(26.0 * Game.difficulty, "arcane", self, p, dir + Vector3.UP * 0.5, 13.0))
+		target.apply_damage(DamageInfo.make(26.0 * power(), "arcane", self, p, dir + Vector3.UP * 0.5, 13.0))
 
 
 func _teleport() -> void:

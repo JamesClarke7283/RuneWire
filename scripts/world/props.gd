@@ -16,7 +16,7 @@ const FALLBACK := {
 	"prop_crate_stack": Vector3(2, 2, 2), "prop_barrels": Vector3(2, 1.2, 2), "prop_cart": Vector3(3, 1.6, 1.6),
 	"prop_bridge": Vector3(12, 2, 4), "prop_banner": Vector3(1, 5, 0.2), "prop_race_ring": Vector3(9, 9, 1),
 	"prop_target": Vector3(1.6, 2.2, 0.4), "prop_beacon": Vector3(2, 3, 2), "prop_goal_pad": Vector3(8, 0.3, 8),
-	"prop_challenge_terminal": Vector3(1.2, 1.6, 1.2),
+	"prop_challenge_terminal": Vector3(1.2, 1.6, 1.2), "prop_workbench": Vector3(2.4, 1.0, 1.2),
 	"tree_oak": Vector3(5, 8, 5), "tree_oak_small": Vector3(3.5, 5, 3.5), "tree_pine": Vector3(4, 9, 4),
 	"tree_crystal": Vector3(4, 6, 4), "tree_dead": Vector3(3, 6, 3), "bush_round": Vector3(1.4, 1.2, 1.4),
 	"bush_flower": Vector3(1.4, 1.2, 1.4), "rock_a": Vector3(1.5, 1.2, 1.5), "rock_b": Vector3(2.2, 1.6, 2),
@@ -69,6 +69,7 @@ static func instance(model: String) -> Node3D:
 		var n := ps.instantiate() as Node3D
 		MaterialLib.apply(n)
 		n.name = model
+		n.set_meta("model", model)   # duplicate siblings get renamed "@Node3D@N", so keep the model id here
 		return n
 	return fallback(model)
 
@@ -86,6 +87,17 @@ static func place(parent: Node, model: String, pos: Vector3, yaw_deg: float = 0.
 	return n
 
 
+## Stop drawing small props beyond `end` metres (with a soft fade) to save draw calls.
+static func set_visibility_range(root: Node, end: float, margin: float = 12.0) -> void:
+	if root is GeometryInstance3D:
+		var g := root as GeometryInstance3D
+		g.visibility_range_end = end
+		g.visibility_range_end_margin = margin
+		g.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	for c in root.get_children():
+		set_visibility_range(c, end, margin)
+
+
 static func add_lights(n: Node3D, color: Color = Color(1.0, 0.78, 0.45), energy: float = 1.6, light_range: float = 9.0) -> void:
 	for lp in n.find_children("LightPoint*", "", true, false):
 		var l := NightLight.new()
@@ -99,6 +111,7 @@ static func fallback(model: String) -> Node3D:
 	var size: Vector3 = FALLBACK.get(model, Vector3(1.5, 1.5, 1.5))
 	var root := Node3D.new()
 	root.name = model
+	root.set_meta("model", model)
 	var mi := MeshInstance3D.new()
 	var col := Color("c0b090")
 	for prefix in FALLBACK_COLORS:

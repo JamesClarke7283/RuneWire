@@ -1,9 +1,11 @@
 class_name EquipBase
 extends Node
-## Base class for hotbar equipment (tools, spells, weapons).
+## Base class for hotbar equipment (tools, spells, guns, melee). Weapons get `data` = the final
+## stats of their weapon instance (Catalog.weapon_stats), tools their Catalog.TOOLS entry.
 
 var player: Player
-var id: String = ""
+var id: String = ""        # weapon base / tool id
+var uid: int = 0           # weapon instance uid (0 for tools)
 var data: Dictionary = {}
 var active: bool = false
 
@@ -54,3 +56,13 @@ func status() -> String:
 
 func aim_info() -> String:
 	return ""
+
+
+## Ammo / readiness fill 0..1 for the hotbar slot meter (-1 = no meter).
+func meter() -> float:
+	return -1.0
+
+
+## A DamageInfo from the player that carries this weapon's stats (for perks and kill tracking).
+func hit(amount: float, dmg_type: String, pos: Vector3, dir: Vector3, knock: float = 1.0) -> DamageInfo:
+	return DamageInfo.make(amount, dmg_type, player, pos, dir, knock, true).with_weapon(data)

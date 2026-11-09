@@ -4,6 +4,7 @@ extends Control
 
 var player: Player
 var target: Variant = null   # Vector3 or null
+var treasure: Variant = null # Vector3 or null: the Treasure Map's chest
 
 const FOV_DEG := 160.0
 
@@ -50,17 +51,32 @@ func _draw() -> void:
 				draw_string(font, Vector2(x - tw / 2.0, h * 0.68), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 		else:
 			draw_line(Vector2(x, h * 0.3), Vector2(x, h * 0.62), Color(1, 1, 1, 0.35), 2.0)
-	if target is Vector3 and player:
-		var d: Vector3 = (target as Vector3) - player.global_position
-		var bearing := rad_to_deg(atan2(d.x, -d.z))
-		var rel2 := wrapf(bearing - heading, -180.0, 180.0)
-		var clamped := clampf(rel2, -FOV_DEG / 2.0, FOV_DEG / 2.0)
-		var x2 := w * 0.5 + clamped / (FOV_DEG / 2.0) * (w * 0.5 - 14.0)
-		var pts := PackedVector2Array([Vector2(x2, h - 4), Vector2(x2 - 9, h - 18), Vector2(x2 + 9, h - 18)])
-		draw_colored_polygon(pts, UIStyle.TEAL)
-		draw_circle(Vector2(x2, h - 24), 6.0, UIStyle.GOLD)
-		var dist := Vector2(d.x, d.z).length()
-		if font:
-			var t := "%dm" % int(dist)
-			draw_string(font, Vector2(x2 + 12, h - 18), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UIStyle.TEAL)
+	_draw_marker(target, heading, false)
+	_draw_marker(treasure, heading, true)
 	draw_line(Vector2(w * 0.5, 2), Vector2(w * 0.5, 9), UIStyle.GOLD, 3.0)
+
+
+## Quest marker: teal arrow + gold dot. Treasure marker: gold diamond.
+func _draw_marker(pos: Variant, heading: float, is_treasure: bool) -> void:
+	if not (pos is Vector3) or player == null:
+		return
+	var w := size.x
+	var h := size.y
+	var font := UIStyle.ui_font()
+	var d: Vector3 = (pos as Vector3) - player.global_position
+	var bearing := rad_to_deg(atan2(d.x, -d.z))
+	var rel := wrapf(bearing - heading, -180.0, 180.0)
+	var clamped := clampf(rel, -FOV_DEG / 2.0, FOV_DEG / 2.0)
+	var x := w * 0.5 + clamped / (FOV_DEG / 2.0) * (w * 0.5 - 14.0)
+	var col := Color("ffc93c") if is_treasure else UIStyle.TEAL
+	if is_treasure:
+		var c := Vector2(x, h - 14)
+		draw_colored_polygon(PackedVector2Array([c + Vector2(0, -10), c + Vector2(8, 0), c + Vector2(0, 10), c + Vector2(-8, 0)]), col)
+		draw_colored_polygon(PackedVector2Array([c + Vector2(0, -5), c + Vector2(4, 0), c + Vector2(0, 5), c + Vector2(-4, 0)]), Color("ff7a3c"))
+	else:
+		var pts := PackedVector2Array([Vector2(x, h - 4), Vector2(x - 9, h - 18), Vector2(x + 9, h - 18)])
+		draw_colored_polygon(pts, col)
+		draw_circle(Vector2(x, h - 24), 6.0, UIStyle.GOLD)
+	var dist := Vector2(d.x, d.z).length()
+	if font:
+		draw_string(font, Vector2(x + 12, h - 18 if not is_treasure else h - 6), "%dm" % int(dist), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)

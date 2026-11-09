@@ -54,7 +54,24 @@ env -u LD_LIBRARY_PATH godot --headless --path . --quit-after 600 res://scenes/m
 
 # Render frames to PNGs for a visual check (needs a real GPU driver, so no --headless)
 env -u LD_LIBRARY_PATH godot --path . --write-movie /tmp/shot.png --fixed-fps 30 --quit-after 90 res://scenes/main.tscn
+
+# End-to-end tests (tools/tests/test_<name>.gd): core gameplay, and the inventory / loot / crafting systems
+env -u LD_LIBRARY_PATH godot --headless --path . -- --autostart --no-intro --test=core
+env -u LD_LIBRARY_PATH godot --headless --path . -- --autostart --no-intro --test=inventory
+# Pouches and pack space, crafting stations and recipes, Artisan ranks, schematics, enchanting,
+# gathering, talents and levels, enemy levels and burn/chill, every new weapon, the objective tracker
+env -u LD_LIBRARY_PATH godot --headless --path . -- --autostart --no-intro --test=crafting
+# A played session driven only by player inputs (E, I, B, K, M, number keys, LMB, Esc) and real menu buttons
+env -u LD_LIBRARY_PATH godot --headless --path . -- --autostart --no-intro --test=playthrough
+# A full in-game tour: every region banner (charted on the map), ley travel to every stone, every crafting
+# station, every gathering node, every weapon fired at a target, levels 1 -> 30 with talents, all five
+# pouch slots (windowed: /tmp/rw_tour_*.png)
+env -u LD_LIBRARY_PATH godot --headless --path . -- --autostart --no-intro --test=tour
+# Windowed screenshots of the inventory-era UI and world content (/tmp/rw_inv_*.png)
+env -u LD_LIBRARY_PATH godot --path . -- --autostart --no-intro --test=shots
 ```
+
+The tests save the game. `user://` is keyed by `config/name`, so run them in a copy of the project with a different `config/name` (and its own `--import`), or they overwrite the player's real save.
 
 `--import` starts a second editor instance. If the GUI editor is open on this project, both write to `.godot/`. In that case trigger imports from the open editor (focus its window, or use the MCP) instead.
 

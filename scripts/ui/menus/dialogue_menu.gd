@@ -92,7 +92,7 @@ func _show_main() -> void:
 	for q in Quests.active_for(id):
 		_opt("…  %s (in progress)" % Quests.def(q)["title"], func(): _show_progress(q))
 	if not board and Catalog.VENDORS.has(id):
-		_opt("🛒  Browse %s" % Catalog.VENDORS[id]["title"], func():
+		_opt("→  Browse %s" % Catalog.VENDORS[id]["title"], func():
 			var u := ui
 			closed.emit()
 			u.open_shop.call_deferred(id))
@@ -112,7 +112,16 @@ func _rewards_text(d: Dictionary) -> String:
 		parts.append("%d× %s" % [int(r["items"][i]), Catalog.display_name(i)])
 	for p in r.get("unlock_parts", []):
 		parts.append("[color=#6a3fc0]Blueprint: %s[/color]" % Catalog.display_name(p))
+	for wd in r.get("weapons", []):
+		parts.append(_weapon_text(wd))
 	return ", ".join(parts)
+
+
+func _weapon_text(wd: Dictionary) -> String:
+	var rarity := int(wd.get("rarity", 0))
+	var base: String = wd.get("base", "random")
+	var nm := "weapon" if not Catalog.WEAPONS.has(base) else Catalog.display_name(base)
+	return "[color=#%s][b]%s %s[/b][/color]" % [Catalog.rarity_color(rarity).darkened(0.35).to_html(false), Catalog.RARITY_NAMES[rarity], nm]
 
 
 func _objectives_text(q: String) -> String:
@@ -129,7 +138,16 @@ func _objectives_text(q: String) -> String:
 func _show_offer(q: String) -> void:
 	var d := Quests.def(q)
 	set_title(d["title"])
-	_say("%s\n\n[b]Objectives[/b]\n%s\n[b]Rewards:[/b] %s" % [d.get("offer", ""), _objectives_text(q), _rewards_text(d)])
+	var gift := ""
+	var oa: Dictionary = d.get("on_accept", {})
+	if not oa.is_empty() and not Quests.is_done(q):
+		var g := []
+		for iid in oa.get("items", {}):
+			g.append("%d× %s" % [int(oa["items"][iid]), Catalog.display_name(iid)])
+		for wd in oa.get("weapons", []):
+			g.append(_weapon_text(wd))
+		gift = "[b]You receive now:[/b] %s\n" % ", ".join(g)
+	_say("%s\n\n[b]Objectives[/b]\n%s\n%s[b]Rewards:[/b] %s" % [d.get("offer", ""), _objectives_text(q), gift, _rewards_text(d)])
 	_clear_options()
 	_opt("✔  Accept", func():
 		Quests.accept(q)

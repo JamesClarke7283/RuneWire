@@ -10,8 +10,8 @@ const SPECIAL := {
 		"shape": {"type": "box", "size": Vector3(1.2, 1.2, 1.2)}, "model": "res://assets/models/items/item_ley_cargo.glb",
 		"material": "wood", "indestructible": true, "desc": "Fragile? No. Heavy? Extremely."},
 	"haul_crate": {"name": "Gorge Haul Crate", "category": "special", "price": 0, "mass": 220.0, "hp": 99999.0,
-		"shape": {"type": "box", "size": Vector3(1.4, 1.4, 1.4)}, "model": "res://assets/models/items/item_chest.glb",
-		"material": "wood", "indestructible": true, "desc": "Get it across the gorge!"},
+		"shape": {"type": "box", "size": Vector3(1.4, 1.4, 1.4)}, "model": "res://assets/models/parts/part_crate.glb",
+		"model_scale": 1.4, "material": "wood", "indestructible": true, "desc": "Get it across the gorge!"},
 }
 
 var part_id: String = ""
@@ -51,6 +51,8 @@ func _build() -> void:
 	model = MaterialLib.instance_model(path)
 	if model == null:
 		model = _placeholder()
+	elif def.has("model_scale"):
+		model.scale = Vector3.ONE * float(def["model_scale"])
 	model.name = "Model"
 	add_child(model)
 	_build_shapes()

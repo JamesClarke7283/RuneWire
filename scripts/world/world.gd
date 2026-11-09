@@ -37,6 +37,7 @@ func build() -> void:
 	add_child(terrain)
 	terrain.build()
 	print("World: terrain %d ms" % (Time.get_ticks_msec() - t0))
+	MapMenu.prepare(self)   # paints the map picture on a worker thread while the rest loads
 	var water := Water.new()
 	water.name = "Lake"
 	add_child(water)
@@ -84,6 +85,10 @@ func build() -> void:
 
 func ground_y(x: float, z: float) -> float:
 	return terrain.height_at(x, z)
+
+
+func _exit_tree() -> void:
+	MapMenu.release()
 
 
 func ground_point(x: float, z: float, lift: float = 0.0) -> Vector3:

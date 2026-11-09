@@ -13,6 +13,7 @@ import sys
 _GIMP_DIR = os.path.join(os.environ.get("RW_ROOT") or os.getcwd(), "art", "gimp")
 if _GIMP_DIR not in sys.path:
     sys.path.insert(0, _GIMP_DIR)
+sys.dont_write_bytecode = True  # keep __pycache__ out of the repo
 import rwtex as T  # noqa: E402
 from rwtex import Gimp, Gio  # noqa: E402
 

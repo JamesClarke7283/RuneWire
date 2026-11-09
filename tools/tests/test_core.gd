@@ -16,6 +16,14 @@ func check(cond: bool, what: String) -> void:
 		printerr("TEST FAIL ", what)
 
 
+## Hotbar weapon slot (0 or 1) holding a weapon of this base.
+func _slot_of(base: String) -> int:
+	for i in Game.WEAPON_SLOTS:
+		if Game.loadout_weapon(i).get("base", "") == base:
+			return i
+	return 0
+
+
 func wait(sec: float) -> void:
 	await get_tree().create_timer(sec, true, true).timeout
 
@@ -99,13 +107,13 @@ func run(m: Node) -> void:
 	await wait(6.0)
 	check(Game.gold > gold_before, "gold coins collected (%d -> %d)" % [gold_before, Game.gold])
 	# ---------------------------------------------------------------- spells / weapons smoke
-	var caster: EquipBase = p._handler_for("arcane_bolt")
+	var caster: EquipBase = p.handler_for_weapon(int(Game.loadout[_slot_of("arcane_bolt")]))
 	var mana0 := p.mana
 	caster.on_equip()
 	caster.primary(true)
 	caster.primary(false)
 	check(p.mana < mana0, "arcane bolt spent mana")
-	p.select_slot(Game.hotbar.find("arc_pistol"))
+	p.select_slot(_slot_of("arc_pistol"))
 	var gun: EquipBase = p.current
 	gun.primary(true)
 	await wait(0.4)

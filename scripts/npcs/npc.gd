@@ -56,7 +56,7 @@ func _ready() -> void:
 	body.add_child(cs)
 	add_child(body)
 	_marker = Node3D.new()
-	_marker.position.y = 2.6 if npc_id != "gus" else 2.0
+	_marker.position.y = marker_height()
 	add_child(_marker)
 	_t = randf() * 10.0
 	Quests.quest_updated.connect(func(_q): _marker_timer = 0.0)
@@ -143,7 +143,7 @@ func _process(delta: float) -> void:
 		_marker_timer = 0.6
 		_update_marker()
 	if _marker:
-		_marker.position.y = (2.6 if npc_id != "gus" else 2.0) + sin(_t * 3.0) * 0.08
+		_marker.position.y = marker_height() + sin(_t * 3.0) * 0.08
 		_marker.rotation.y += delta * 1.5
 
 
@@ -242,3 +242,13 @@ func _placeholder() -> Node3D:
 		eye.position = Vector3(side * 0.1, 0.05, 0.26)
 		head.add_child(eye)
 	return root
+
+
+## Height of the floating quest marker: clear of each model's head (Lirael's hat reaches 2.42 m).
+func marker_height() -> float:
+	match npc_id:
+		"gus":
+			return 2.0
+		"lirael":
+			return 2.95
+	return 2.6

@@ -36,7 +36,7 @@ Read `AGENTS.md` first. It covers the machine quirks, how to run Blender and GIM
   | Asset type | Max triangles |
   |---|---|
   | Parts | 6k |
-  | Viewmodels | 8k |
+  | Viewmodels (glove included) | 14k |
   | Enemies | 15k |
   | Bosses | 25k |
   | NPCs | 12k |
@@ -84,7 +84,14 @@ These are first-person items. **The muzzle or emitter points toward Blender −Y
 
 Each one includes a chunky cartoon right-hand **glove**: brown leather with a blue sleeve cuff. The glove grips the handle, with the wrist toward +Y and slightly down. Model the glove once with a shared helper and reuse it in every script; the gauntlet is the exception, since it is the hand itself. Length is about 0.4–0.6 m (cartoon chunky).
 
-The icon goes to `assets/icons/items/<asset>.png`.
+The icon goes to `assets/icons/items/<asset>.png`. Weapons (everything except the gauntlet and toolkit) are inventory items, so their scripts end with `rw.finish(asset, "weapons", icon=False)` followed by `wpn_icon.render(asset)` (`art/blender/weapons/wpn_icon.py`): a weapon-only profile icon, glove hidden, muzzle pointing right.
+
+Rules for every weapon viewmodel (the inventory, loot pickups and the first-person animations depend on them):
+
+- The glove is a separate object named exactly **`Glove`**. World loot pickups show the model with it removed, so the weapon must look complete without it.
+- Exactly one small glowing accent uses a material named **`RarityGlow`** (`rw.glow("RarityGlow", "ffffff", 3.0)`). The game recolours it by item rarity.
+- Spell foci: the crystal uses `M_Crystal__a066ff` and nothing else on the model may use an `M_Crystal*` material; the game swaps its tint per spell.
+- Keep the overall size close to the existing models, because `scripts/player/viewmodel.gd` (`PLACEMENT`) positions each one in front of the camera.
 
 | Asset | Description and required nodes |
 |---|---|
@@ -92,8 +99,21 @@ The icon goes to `assets/icons/items/<asset>.png`.
 | `vm_toolkit` | Rune Toolkit: a brass multitool / tuning-fork wand with a crystal lens at the front, a little dial screen on top and copper coils. The glove grips the handle. **Empty `Emitter`** at the lens tip. |
 | `vm_staff` | Spell focus: a short gnarled dark-wood wand with brass ferrules and a violet crystal head (`M_Crystal__a066ff`). The glove grips it. **Empty `Emitter`** at the crystal tip. |
 | `vm_arc_pistol` | Retro-futuristic pistol: brass body, copper coils, a glass tube with a glowing cyan core (`rw.glow`), wooden grip. **Empty `Muzzle`**. |
-| `vm_rivet_repeater` | Chunky rivet rifle: drum magazine, steel barrel with cooling fins, brass receiver. **Empty `Muzzle`**. |
+| `vm_rivet_repeater` | Chunky rivet rifle: drum magazine, steel barrel with cooling fins, brass receiver. The drum is a **separate object `Drum`** (child of the body, origin on its spin axis along X; the game spins it while firing). **Empty `Muzzle`**. |
 | `vm_boom_mortar` | Hand mortar: a short fat barrel (Ø about 0.16) with brass bands, a hazard stripe and a fuse. **Empty `Muzzle`**. |
+| `vm_scattergun` | Cogburst Scattergun: a chunky brass blunderbuss with a flared bell mouth, a gear-driven pump, a side shell holder and a wooden stock. **Object `Pump`** (child of the body, origin at its rest position; the game slides it 0.06 m toward +Y and back). **Empty `Muzzle`**. |
+| `vm_tesla_lance` | Tesla Lance: a long charge-up shock rifle with three copper tesla prongs at the muzzle, glass capacitor cells and coils. **Object `ChargeCore`** (glowing core inside the largest capacitor, origin at its centre; the game scales it 0.3 → 1.0 while charging). **Empty `Muzzle`**. |
+| `vm_thunder_wrench` | Thunder Wrench (melee): an oversized cartoon spanner with a lightning capacitor near the head, held like a club, extending forward and up. **Empty `Tip`** at the centre of the striking face. |
+| `vm_longshot` | Brass Longshot: a long brass-and-walnut marksman rifle with a big telescopic scope, muzzle brake and bolt handle on the +X side. **Empty `Muzzle`**. About 0.85 m. |
+| `vm_gatling` | Steamroller Gatling: a hand-held six-barrel rotary gun with a steam tank and gauge, front grip and ammo feed. **Object `Barrels`** (child of the body, origin on the cluster's spin axis along Y; the game spins it while firing). **Empty `Muzzle`** (child of the body). |
+| `vm_flamer` | Bellows Flamethrower: brass fuel tank, leather bellows, copper pipe to a flared nozzle with a glowing pilot flame. **Empty `Muzzle`** at the nozzle. |
+| `vm_crossbow` | Clockwork Crossbow: compact repeating crossbow with steel limbs, winding gear, bolt magazine and crank. **Object `Bolt`** (the loaded bolt, origin at its centre; hidden after each shot). **Empty `Muzzle`** at the bolt tip. |
+| `vm_steam_hammer` | Piston Maul (melee): a steam sledgehammer held forward and up like the wrench. **Object `Piston`** (the striking face + rod, origin at rest; the game punches it 0.07 m toward `Tip` on a heavy slam). **Empty `Tip`** at the striking face. |
+| `vm_wand` | Ley Wand: a slender ivory-and-filigree wand (clearly different from `vm_staff`) with a faceted crystal tip (`M_Crystal__a066ff`, tinted per wand). **Empty `Emitter`**. Used by the Emberwick and Rimefang wands. |
+| `vm_tome` | Wispcaller Grimoire: an open spellbook held by its lower edge, glowing pages, a cover gem (`M_Crystal__a066ff`). **Object `Pages`** (loose leaves, origin on the spine; fluttered on each cast). **Empty `Emitter`** above the pages. |
+| `vm_orb` | Gloom Orb: a brass sceptre handle with a filigree cage. **Object `Orb`** (the crystal sphere, `M_Crystal__a066ff`, origin at its centre; spun and pulsed). **Empty `Emitter`**. |
+| `vm_scepter` | Sunlance Scepter: a golden scepter with a sun-disc head and a forward crystal (`M_Crystal__a066ff`). **Object `Halo`** (a ring of sun runes, origin at the head centre, axis along Y; spun while beaming). **Empty `Emitter`**. |
+| `vm_runeblade` | Runeblade (magic melee): a leaf-shaped steel sword with a glowing rune channel (`M_Crystal__a066ff`, tinted), brass gear-wing crossguard, held forward and up. **Empty `Tip`** at the blade tip. |
 
 ## Batch B: enemies and NPCs (`art/blender/enemies|npcs/`, `icon=True`)
 
@@ -239,7 +259,7 @@ The characters:
 
 ## Batch D: nature and item pickups
 
-**Nature** (`art/blender/nature/`, `assets/models/nature/`): origin at the base centre. Trees get a trunk collision cylinder; rocks get a box or cylinder proxy.
+**Nature** (`art/blender/nature/`, `assets/models/nature/`): origin at the base centre. These are scattered as MultiMeshes (`scripts/world/vegetation.gd`), so join each model into **one mesh object** with 1–3 materials and add **no collision objects**: the game builds the colliders itself from `Vegetation.TYPES` (a trunk cylinder for trees, spheres for rocks and stumps, a box for `cliff_a`, a capsule along the log). Rocks, cliffs, logs and stumps need a skirt continuing below z = 0, because instances are tilted up to ±11° and sunk 0.15–0.35 m.
 
 | Asset | Description |
 |---|---|
@@ -269,7 +289,42 @@ The characters:
 | `item_health_tonic` | Round red potion bottle with a cork and a label, 0.3 m. |
 | `item_mana_draught` | Tall blue potion flask, 0.3 m. |
 | `item_ley_cargo` | Delivery cargo, 1.2 × 1.2 × 1.2: a reinforced crate with a big glowing teal crystal visible through open slats. |
-| `item_chest` | Treasure chest, 1.0 × 0.7 × 0.8, with brass corners and a lock. |
+| `item_chest` | Treasure chest, 1.0 × 0.7 × 0.8, with brass corners and a lock. **Origin at the ground centre** (exception). **Object `Lid`** (child of the body, origin on the hinge axis at the back top edge; the game rotates it about X by −105° to open it). |
+| `item_vault` | Ley Vault, 1.2 × 0.8 × 0.95: a dark rune-stone chest with brass bands, glowing teal runes and a round rune lock. Same origin and **`Lid`** rules as `item_chest`. |
+| `item_spark_bomb` | Throwable cartoon bomb with brass bands, a ley-crystal window and a lit fuse, 0.25 m. |
+| `item_swift_elixir` | Swiftfoot Elixir: slim teal-green flask with little brass wings, 0.3 m. |
+| `item_iron_tonic` | Ironhide Tonic: squat steel-banded flask of amber liquid with a cog stopper, 0.28 m. |
+| `item_repair_kit` | Tinker's Patch Kit: leather tool roll with a wrench, an oil can and a glowing rune patch, 0.35 m. |
+| `item_shade_silk` | Spool of shimmering dark-purple ghost silk with teal glints, 0.3 m. |
+| `item_ley_crystal` | Cluster of teal ley crystals on a mossy rock base, 0.3 m. |
+| `item_clockwork_core` | Brass sphere cage with gears and a glowing orange core, 0.25 m. |
+| `item_ley_key` | Ornate brass key with a teal crystal in its bow, 0.35 m. |
+| `item_copper_ore`, `item_iron_ore` | Rock lumps with copper nuggets / rusty iron nodules, 0.3 m. |
+| `item_reed_fiber`, `item_glowcap`, `item_sunpetal` | Tied reed bundle; glowing teal-blue mushrooms on moss; a golden flower. |
+| `item_copper_ingot`, `item_iron_ingot`, `item_brass_ingot`, `item_runesteel_ingot` | Ingot bars with stamped emblems (runesteel: glowing violet runes), 0.3 m. |
+| `item_steel_plate`, `item_spun_cloth`, `item_arcane_thread`, `item_rune_ink` | Riveted plate; a bolt of cream cloth; a skein of glowing teal thread on a brass bobbin; an inkwell of glowing violet ink with a quill. |
+| `item_focus_gem`, `item_spring_coil`, `item_power_cell`, `item_ley_lens` | A faceted gem in a brass claw; a fat steel spring; a glass battery with a teal core; a crystal lens in a brass ring. |
+| `item_schematic` | A partly unrolled blueprint scroll with a red wax seal; shared by every schematic. |
+| `item_greater_health_tonic`, `item_greater_mana_draught`, `item_regen_salve` | Bigger red / blue potions with gold trim; a tin of green salve. |
+| `item_berserker_brew`, `item_fortune_tonic`, `item_skyleap_draught`, `item_weapon_oil`, `item_focus_incense` | Buff consumables: a frothy tankard; a clover bottle with a coin cork; a sky-blue flask with a feather; a brass oil can; a brass censer with violet smoke. |
+| `item_frost_bomb`, `item_shock_jar` | Throwables: an icy bomb with a frost-blue core; a jar of crackling lightning. |
+| `item_pouch_cloth` … `item_pouch_void`, `item_pouch_alchemist`, `item_pouch_prospector`, `item_pouch_scavenger` | Pouches (inventory expanders, worn in the five pouch slots), each distinct; the plain tiers grow richer: cloth, leather, brass, rune, ley, void. |
+
+**World props for treasure, gathering and crafting** (`art/blender/env/`, `assets/models/env/`, collision proxies required):
+
+| Asset | Footprint × height (m) | Description and required nodes |
+|---|---|---|
+| `prop_workbench` | 2.4 × 1.2 × 2.1 | The Artificer's Workbench: sturdy bench (top at 0.95 m) with a vise, a rune-anvil, a tool pegboard at the back and a crystal lamp (**empty `LightPoint`**). |
+| `node_ley_crystal` | 1.4 × 1.4 × 1.6 | Harvestable ley-crystal cluster on a mossy rock. The crystals are **one object `Crystals`** (origin at the top centre of the rock; the game shrinks and regrows it). |
+| `prop_sky_island` | 8 × 8 × 5 | Floating island: grassy top, rocky underside tapering to a point, hanging crystals and roots. **Origin at the centre of the walkable top** (exception), with a box collider for the top. |
+| `prop_forge` | 2.6 × 2.0 × 3.2 | Emberwick Forge: stone-and-brick furnace with a glowing mouth, chimney, bellows, anvil. **Empty `LightPoint`** in the mouth. |
+| `prop_alchemy_table` | 2.0 × 1.0 × 1.8 | Alchemist's Table: alembic of glowing liquids, brazier, herbs. **Empty `LightPoint`** at the brazier. |
+| `prop_arcane_altar` | 1.6 × 1.6 × 2.2 | Enchanter's Altar: rune-carved pedestal with brass arms. **Object `Crystal`** (floating crystal, origin at its centre; the game bobs and spins it). **Empty `LightPoint`**. |
+| `prop_loom` | 2.0 × 1.2 × 2.0 | Tailor's Loom: upright loom with half-woven cloth, spools, a reed basket and hanging pouches. **Empty `LightPoint`** in its little lantern. |
+| `node_ore_copper`, `node_ore_iron` | 1.6 × 1.4 × 1.2 | Ore veins: rocky outcrops studded with copper / iron. **Object `Harvest`** (the ore, origin at the rock's top centre; shrunk away when mined and regrown). |
+| `node_glowcap` | 1.2 × 1.2 × 0.9 | A mossy stump with glowing mushrooms. **Object `Harvest`** (the mushrooms). |
+| `node_sunpetal` | 1.0 × 1.0 × 1.0 | A leafy clump of golden flowers. **Object `Harvest`** (the flowers). |
+| `node_reeds` | 1.2 × 1.2 × 1.8 | Reeds and cattails on a muddy base. **Object `Harvest`** (the stalks). |
 
 ## Textures (GIMP): `art/gimp/`, `assets/textures/`
 
@@ -375,6 +430,11 @@ Synthesise everything procedurally with Python scripts in `art/audio/`. Blender'
 | Weapons | `gun_arc_pistol`, `gun_rivet`, `gun_mortar`, `explosion_big`, `reload` |
 | Tools | `tool_grab_loop` (hum), `tool_grab_start`, `tool_freeze`, `tool_weld`, `tool_remove`, `tool_spawn` (pop), `tool_configure` (beep) |
 | Contraptions | `thruster_loop`, `engine_loop`, `rotor_loop`, `hover_loop`, `impact_wood`, `impact_metal`, `impact_stone`, `spring_boing`, `turret_arcane`, `turret_rivet` |
+| New weapons | `gun_scatter`, `scatter_pump`, `lance_charge`, `lance_fire`, `wrench_swing`, `wrench_hit`, `bomb_throw` |
+| Loot, gathering, crafting | `chest_open`, `chest_locked`, `vault_open`, `crystal_harvest`, `scavenge`, `craft`, `pickup_weapon`, `pickup_rare`, `drink`, `elite_spawn`, `ui_bag`, `ui_equip`, `ui_sell` |
+| Tech weapons (update 2) | `gun_longshot`, `scope_zoom`, `gun_gatling`, `gatling_spin`, `flamer_burst` (re-triggered every 0.3 s), `crossbow_fire`, `crossbow_reload`, `hammer_slam` |
+| Magic weapons (update 2) | `wand_ember`, `wand_frost`, `tome_cast`, `orb_cast`, `orb_implode`, `beam_hum` (re-triggered every 0.3 s), `blade_swing`, `blade_wave` |
+| Stations, gathering, progression | `forge_smelt`, `alchemy_brew`, `enchant`, `loom_weave`, `mine_ore`, `herb_pick`, `pouch_equip`, `talent_unlock`, `objective_ping` |
 | Enemies | `wisp_loop`, `wisp_attack`, `golem_step`, `golem_slam`, `wraith_shriek`, `cultist_cast`, `drone_loop`, `drone_shoot`, `sentry_shoot`, `crawler_skitter`, `crawler_bite`, `ironclad_step`, `ironclad_rocket`, `hit_magic`, `hit_metal`, `death_magic` (sparkly poof), `death_tech` (crunch and pop) |
 | Ambience | `amb_wind_loop`, `amb_birds_loop`, `amb_night_loop`, `amb_magic_loop`, `amb_factory_loop` |
 

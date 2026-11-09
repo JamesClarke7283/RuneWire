@@ -7,6 +7,23 @@ const MUSIC_PATH := "res://assets/audio/music/%s.wav"
 const POOL_3D := 24
 const POOL_2D := 10
 
+## Stand-ins for sounds whose .wav has not been generated yet.
+const FALLBACKS := {
+	"gun_scatter": "gun_mortar", "scatter_pump": "reload", "lance_charge": "spell_lightning", "lance_fire": "spell_lightning",
+	"wrench_swing": "jump", "wrench_hit": "impact_metal", "bomb_throw": "jump", "chest_open": "quest_accept",
+	"chest_locked": "ui_error", "vault_open": "quest_complete", "crystal_harvest": "spell_arcane_hit", "scavenge": "impact_metal",
+	"craft": "tool_weld", "pickup_weapon": "notify", "pickup_rare": "level_up", "drink": "spell_heal",
+	"elite_spawn": "wraith_shriek", "ui_bag": "ui_open", "ui_equip": "ui_click", "ui_sell": "ui_buy",
+	# new weapons, crafting and progression (used until their own .wav files exist)
+	"gun_longshot": "lance_fire", "scope_zoom": "ui_click", "gun_gatling": "gun_rivet", "gatling_spin": "lance_charge",
+	"flamer_burst": "spell_fireball_cast", "crossbow_fire": "gun_rivet", "crossbow_reload": "reload", "hammer_slam": "wrench_hit",
+	"wand_ember": "spell_fireball_cast", "wand_frost": "spell_arcane_cast", "tome_cast": "spell_arcane_cast",
+	"orb_cast": "spell_arcane_cast", "orb_implode": "explosion_big", "beam_hum": "spell_arcane_cast", "blade_swing": "wrench_swing",
+	"blade_wave": "spell_arcane_cast", "forge_smelt": "craft", "alchemy_brew": "drink", "enchant": "craft", "loom_weave": "craft",
+	"mine_ore": "scavenge", "herb_pick": "crystal_harvest", "pouch_equip": "ui_equip", "talent_unlock": "level_up",
+	"objective_ping": "notify",
+}
+
 var _streams: Dictionary = {}
 var _pool3d: Array[AudioStreamPlayer3D] = []
 var _pool2d: Array[AudioStreamPlayer] = []
@@ -66,6 +83,8 @@ func stream(sound_name: String, looped: bool = false) -> AudioStream:
 			w.loop_begin = 0
 			w.loop_end = int(w.get_length() * w.mix_rate)
 			s = w
+	elif FALLBACKS.has(sound_name):
+		s = stream(FALLBACKS[sound_name], looped)
 	_streams[key] = s
 	return s
 

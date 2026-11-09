@@ -25,7 +25,20 @@ func _ready() -> void:
 	Events.contraption_altitude.connect(_on_altitude)
 	Events.cargo_delivered.connect(func(_cid, zone): _advance("deliver", zone, 1.0))
 	Events.challenge_finished.connect(_on_challenge)
+	Events.enemy_killed_with.connect(_on_killed_with)
+	Events.chest_opened.connect(_on_chest)
+	Events.resource_harvested.connect(_on_harvest)
+	Events.scavenged.connect(func(n): _advance("scavenge", "", float(n)))
+	Events.item_crafted.connect(_on_crafted)
+	Events.weapon_upgraded.connect(func(_uid, _lvl): _advance("upgrade", "", 1.0))
+	Events.weapon_enchanted.connect(func(_uid): _advance("enchant", "", 1.0))
+	Game.loadout_changed.connect(_refresh_equip)
 	Game.inventory_changed.connect(_refresh_collect)
+	Game.pouches_changed.connect(_refresh_absolute)
+	Game.talents_changed.connect(_refresh_absolute)
+	Game.artisan_changed.connect(func(_x, _r): _refresh_absolute())
+	Game.schematic_learned.connect(func(_r): _refresh_absolute())
+	Game.xp_changed.connect(func(_x, _l): _refresh_absolute())
 
 
 func reset() -> void:
@@ -116,7 +129,11 @@ func accept(id: String) -> void:
 	quest_accepted.emit(id)
 	tracked_changed.emit(id)
 	Events.toast("Quest accepted: %s" % d["title"], "quest")
+	if times == 0:
+		_give(d.get("on_accept", {}), "Received")
 	_refresh_collect()
+	_refresh_equip()
+	_refresh_absolute()
 	_check_ready(id)
 
 
@@ -150,10 +167,7 @@ func turn_in(id: String) -> bool:
 	for pid in r.get("parts", {}):
 		Game.add_parts(pid, int(r["parts"][pid]))
 		Events.toast("Received %d x %s" % [int(r["parts"][pid]), Catalog.display_name(pid)], "item")
-	for iid in r.get("items", {}):
-		Game.items[iid] = Game.item_count(iid) + int(r["items"][iid])
-		Game.inventory_changed.emit()
-		Events.toast("Received %d x %s" % [int(r["items"][iid]), Catalog.display_name(iid)], "item")
+	_give({"items": r.get("items", {}), "weapons": r.get("weapons", [])}, "Received")
 	for pid in r.get("unlock_parts", []):
 		Game.unlock_part(pid)
 	for eid in r.get("unlock_equipment", []):
@@ -168,6 +182,23 @@ func turn_in(id: String) -> bool:
 		tracked_changed.emit(tracked)
 	SaveSystem.request_autosave()
 	return true
+
+
+## Hands over items / weapons ({"items": {id: n}, "weapons": [{base, rarity}]}). Schematic ids
+## ("sch_<recipe>") teach the recipe; anything that does not fit in the pack lands at your feet.
+func _give(g: Dictionary, verb: String) -> void:
+	for iid in g.get("items", {}):
+		var n := int(g["items"][iid])
+		if Catalog.is_schematic(iid):
+			Game.learn_schematic(Catalog.schematic_recipe(iid))
+			continue
+		Game.give_item(iid, n)
+		Events.toast("%s %d x %s" % [verb, n, Catalog.display_name(iid)], "item")
+	for wd in g.get("weapons", []):
+		var base: String = wd.get("base", "random")
+		var w := Catalog.make_weapon(base if Catalog.WEAPONS.has(base) else Catalog.random_weapon_base(), int(wd.get("rarity", 0)),
+			[], int(wd.get("level", 1)))
+		Game.give_weapon(w, true)
 
 
 func objective_progress(id: String, index: int) -> float:
@@ -210,7 +241,8 @@ func _pick_tracked() -> String:
 
 
 # ---------------------------------------------------------------- progress
-func _advance(type: String, target: String, amount: float, absolute: bool = false) -> void:
+## Progress objectives of `type` whose target is "any", `target` or one of `alt` (counted once).
+func _advance(type: String, target: String, amount: float, absolute: bool = false, alt: Array = []) -> void:
 	for id in state.keys():
 		if state[id]["status"] != "active":
 			continue
@@ -221,7 +253,7 @@ func _advance(type: String, target: String, amount: float, absolute: bool = fals
 			if o["type"] != type:
 				continue
 			var tgt: String = o.get("target", "any")
-			if tgt != "any" and tgt != "" and target != tgt and not (target == "" and tgt == ""):
+			if tgt != "any" and tgt != "" and target != tgt and not (target == "" and tgt == "") and not tgt in alt:
 				continue
 			var count := float(o.get("count", 1))
 			var cur: float = state[id]["progress"][i]
@@ -256,6 +288,78 @@ func _on_enemy_killed(enemy_type: String, faction: String, _pos: Vector3) -> voi
 		if changed:
 			quest_updated.emit(id)
 			_check_ready(id)
+
+
+## kill_with objectives match the killing weapon's kind ("gun", "spell", "melee") or its base id.
+func _on_killed_with(enemy_type: String, _faction: String, weapon_kind: String, weapon_base: String, elite: bool) -> void:
+	if elite:
+		_advance("kill_elite", enemy_type, 1.0)
+	if weapon_kind == "":
+		return
+	for id in state.keys():
+		if state[id]["status"] != "active":
+			continue
+		var objs: Array = def(id)["objectives"]
+		var changed := false
+		for i in objs.size():
+			var o: Dictionary = objs[i]
+			if o["type"] != "kill_with":
+				continue
+			var tgt: String = o.get("target", "any")
+			if tgt != "any" and tgt != weapon_kind and tgt != weapon_base and tgt != "school:" + Catalog.weapon_school(weapon_base):
+				continue
+			if state[id]["progress"][i] < float(o.get("count", 1)):
+				state[id]["progress"][i] += 1.0
+				changed = true
+		if changed:
+			quest_updated.emit(id)
+			_check_ready(id)
+
+
+## harvest objectives: target an item id, "ore" (copper / iron), "herb" (glowcap / sunpetal) or "any".
+func _on_harvest(item: String, n: int) -> void:
+	var groups := []
+	if item in ["copper_ore", "iron_ore"]:
+		groups.append("ore")
+	if item in ["glowcap", "sunpetal"]:
+		groups.append("herb")
+	_advance("harvest", item, float(n), false, groups)
+
+
+## craft objectives: target a recipe id, "station:<id>" (anything at that station), "weapon" (any
+## weapon recipe), "pouch" (any pouch) or "any".
+func _on_crafted(rid: String) -> void:
+	var r := Catalog.recipe(rid)
+	var alt := ["station:" + str(r.get("station", ""))]
+	if r.has("weapon"):
+		alt.append("weapon")
+	var o := Catalog.recipe_output(rid)
+	if not o.is_empty() and Catalog.is_pouch(str(o["id"])):
+		alt.append("pouch")
+	_advance("craft", rid, 1.0, false, alt)
+
+
+## Objectives that track a current value: pouches equipped, Artisan rank, talent points spent,
+## player level and schematics learned.
+func _refresh_absolute() -> void:
+	_advance("pouches", "", float(Game.pouch_count()), true)
+	_advance("artisan", "", float(Game.artisan_rank()), true)
+	_advance("talent", "", float(Game.talent_points_spent()), true)
+	_advance("level", "", float(Game.level), true)
+	_advance("learn", "", float(Game.schematics.size()), true)
+
+
+## open_chest objectives: target "any" counts every chest, "vault" only Ley Vaults.
+func _on_chest(_chest_id: String, vault: bool) -> void:
+	_advance("open_chest", "vault" if vault else "chest", 1.0)
+
+
+## "equip" objectives complete while that weapon base sits in a hotbar weapon slot.
+func _refresh_equip() -> void:
+	for i in Game.WEAPON_SLOTS:
+		var w := Game.loadout_weapon(i)
+		if not w.is_empty():
+			_advance("equip", str(w["base"]), 1.0, true)
 
 
 func _on_built(_c: Node, tags: Array) -> void:

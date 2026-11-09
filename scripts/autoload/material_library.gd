@@ -168,7 +168,9 @@ func get_named(full_name: String, variant: String = "") -> ShaderMaterial:
 		m.set_shader_parameter("normal_strength", 0.9)
 	var emission_tex := _tex(set_name, "emission")
 	if def.has("emission"):
-		m.set_shader_parameter("emission_color", Color(def["emission"]))
+		# a tinted crystal / glow (e.g. M_Crystal__a066ff) glows in its tint, not the library's default
+		var ecol := Color(tint) if tint != "" and kind in ["crystal", "glow"] else Color(def["emission"])
+		m.set_shader_parameter("emission_color", ecol)
 		m.set_shader_parameter("emission_energy", float(def.get("energy", 2.0)))
 		if kind == "glow":
 			m.set_shader_parameter("emission_pulse", 0.25)

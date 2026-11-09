@@ -92,10 +92,13 @@ static func button_box(state: String) -> StyleBox:
 	if t:
 		var sb := StyleBoxTexture.new()
 		sb.texture = t
+		# 14 + 16 px caps fit the 36-44 px tabs and small buttons (20 + 20 squashed the rim into the label)
 		sb.texture_margin_left = 24
 		sb.texture_margin_right = 24
-		sb.texture_margin_top = 20
-		sb.texture_margin_bottom = 20
+		sb.texture_margin_top = 14
+		sb.texture_margin_bottom = 16
+		if state == "disabled":
+			sb.modulate_color = Color(0.72, 0.74, 0.74)
 		sb.content_margin_left = 18
 		sb.content_margin_right = 18
 		sb.content_margin_top = 8
@@ -137,10 +140,16 @@ static func build_theme() -> Theme:
 		if st == "focus":
 			sb = StyleBoxEmpty.new()
 		th.set_stylebox(st, "Button", sb)
-	th.set_color("font_color", "Button", INK)
-	th.set_color("font_hover_color", "Button", Color("2a1a10"))
-	th.set_color("font_pressed_color", "Button", Color("1a120a"))
-	th.set_color("font_disabled_color", "Button", Color(0.3, 0.25, 0.2, 0.7))
+	# Button labels sit across the teal button's light and dark halves: warm white with a dark-teal
+	# outline reads on both (dark ink on the lower half was hard to read). List rows override this.
+	th.set_color("font_color", "Button", Color("fff6e0"))
+	th.set_color("font_hover_color", "Button", Color("ffffff"))
+	th.set_color("font_focus_color", "Button", Color("fff6e0"))
+	th.set_color("font_pressed_color", "Button", Color("ffe7a3"))
+	th.set_color("font_hover_pressed_color", "Button", Color("ffe7a3"))
+	th.set_color("font_disabled_color", "Button", Color(0.9, 0.9, 0.86, 0.72))
+	th.set_color("font_outline_color", "Button", Color("173634"))
+	th.set_constant("outline_size", "Button", 5)
 	th.set_font_size("font_size", "Button", 19)
 	th.set_color("font_color", "Label", INK)
 	th.set_color("default_color", "RichTextLabel", INK)
@@ -165,20 +174,52 @@ static func build_theme() -> Theme:
 	th.set_color("font_unselected_color", "TabBar", INK)
 	th.set_color("font_hovered_color", "TabBar", INK)
 	# Scroll & sliders
+	# (the content margins give the bars their width: without them every scrollbar was 0 px wide and
+	# long lists gave no hint that they scroll)
 	var grab := StyleBoxFlat.new()
 	grab.bg_color = BRASS
 	grab.set_corner_radius_all(6)
+	grab.content_margin_left = 5
+	grab.content_margin_right = 5
+	grab.content_margin_top = 12
+	grab.content_margin_bottom = 12
+	var grab_hi := grab.duplicate() as StyleBoxFlat
+	grab_hi.bg_color = Color("f2b84e")
 	th.set_stylebox("grabber", "VScrollBar", grab)
-	th.set_stylebox("grabber_highlight", "VScrollBar", grab)
+	th.set_stylebox("grabber_highlight", "VScrollBar", grab_hi)
+	th.set_stylebox("grabber_pressed", "VScrollBar", grab_hi)
 	var track := StyleBoxFlat.new()
 	track.bg_color = Color(0, 0, 0, 0.12)
 	track.set_corner_radius_all(6)
+	track.content_margin_left = 5
+	track.content_margin_right = 5
 	th.set_stylebox("scroll", "VScrollBar", track)
+	th.set_stylebox("scroll_focus", "VScrollBar", track)
 	th.set_stylebox("slider", "HSlider", track)
 	th.set_icon("grabber", "HSlider", _circle_icon(BRASS))
 	th.set_icon("grabber_highlight", "HSlider", _circle_icon(Color("f2b84e")))
 	th.set_color("font_color", "CheckBox", INK)
-	th.set_color("font_color", "OptionButton", INK)
+	# toggles are plain rows (label, switch on the right) rather than full-width teal buttons
+	var row_hover := StyleBoxFlat.new()
+	row_hover.bg_color = Color(BRASS, 0.14)
+	row_hover.set_corner_radius_all(8)
+	row_hover.set_content_margin_all(6)
+	var row_plain := StyleBoxEmpty.new()
+	row_plain.set_content_margin_all(6)
+	for kind in ["CheckButton", "CheckBox"]:
+		for st in ["normal", "pressed", "disabled", "focus"]:
+			th.set_stylebox(st, kind, row_plain)
+		th.set_stylebox("hover", kind, row_hover)
+		th.set_stylebox("hover_pressed", kind, row_hover)
+		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+			th.set_color(c, kind, INK)
+		th.set_constant("outline_size", kind, 0)
+	for c in ["font_color", "font_focus_color"]:
+		th.set_color(c, "OptionButton", Color("fff6e0"))
+	th.set_color("font_hover_color", "OptionButton", Color("ffffff"))
+	th.set_color("font_pressed_color", "OptionButton", Color("ffe7a3"))
+	th.set_color("font_outline_color", "OptionButton", Color("173634"))
+	th.set_constant("outline_size", "OptionButton", 5)
 	var tip := StyleBoxFlat.new()
 	tip.bg_color = Color(SLATE, 0.96)
 	tip.border_color = BRASS

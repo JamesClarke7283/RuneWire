@@ -53,9 +53,9 @@ func think(delta: float, dist: float) -> void:
 			_rocket_left -= 1
 			var from := _muzzle("MuzzleR", Vector3(-1.6, 4.4, 0.8))
 			var dir := (Vector3.UP * 1.2 + facing_dir() * 0.6 + Vector3(randf_range(-0.6, 0.6), 0, randf_range(-0.6, 0.6))).normalized()
-			Projectile.spawn(self, from, dir * 16.0, {"damage": 12.0 * Game.difficulty, "damage_type": "fire", "color": Color(1.0, 0.55, 0.2),
+			Projectile.spawn(self, from, dir * 16.0, {"damage": 12.0 * power(), "damage_type": "fire", "color": Color(1.0, 0.55, 0.2),
 				"kind": "rocket", "size": 0.16, "from_player": false, "source": self, "homing_target": target, "homing_strength": 2.2,
-				"lifetime": 6.0, "splash_radius": 2.2, "splash_damage": 8.0 * Game.difficulty})
+				"lifetime": 6.0, "splash_radius": 2.2, "splash_damage": 8.0 * power()})
 			AudioManager.play("ironclad_rocket", from, -2.0)
 	if not (aggro and target):
 		wander(move_speed)
@@ -82,7 +82,7 @@ func think(delta: float, dist: float) -> void:
 		attack_cd = 3.0 if not _phase2 else 2.2
 		var from2 := _muzzle("MuzzleL", Vector3(1.6, 3.6, 1.6))
 		var tp := target.global_position + target.velocity * 0.5
-		shoot(from2, tp, 34.0, 18.0, "fire", Color(1.0, 0.6, 0.2), {"kind": "bomb", "size": 0.28, "splash_radius": 4.0, "splash_damage": 24.0 * Game.difficulty, "gravity": 3.0})
+		shoot(from2, tp, 34.0, 18.0, "fire", Color(1.0, 0.6, 0.2), {"kind": "bomb", "size": 0.28, "splash_radius": 4.0, "splash_damage": 24.0 * power(), "gravity": 3.0})
 		AudioManager.play("gun_mortar", from2, 4.0, 0.7)
 		VFX.muzzle(self, from2, Color(1.0, 0.6, 0.2), 0.5)
 	if dist > 12.0:
@@ -98,7 +98,7 @@ func _stomp() -> void:
 	AudioManager.play("ironclad_step", p, 6.0, 0.7)
 	if target and target.global_position.distance_to(p) < 7.0:
 		var dir := (target.global_position - p).normalized()
-		target.apply_damage(DamageInfo.make(25.0 * Game.difficulty, "kinetic", self, p, dir + Vector3.UP * 0.7, 14.0))
+		target.apply_damage(DamageInfo.make(25.0 * power(), "kinetic", self, p, dir + Vector3.UP * 0.7, 14.0))
 	var pl := get_tree().get_first_node_in_group("player") as Player
 	if pl and pl.global_position.distance_to(p) < 30.0:
 		pl.shake(0.8, 0.4)

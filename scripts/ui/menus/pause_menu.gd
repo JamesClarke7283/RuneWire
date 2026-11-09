@@ -6,7 +6,7 @@ var ui: GameUI
 
 
 func _init() -> void:
-	panel_size = Vector2(520, 600)
+	panel_size = Vector2(520, 668)
 	title_text = "Paused"
 
 
@@ -14,6 +14,7 @@ func build() -> void:
 	var main := get_tree().current_scene
 	var items := [
 		["Resume", func(): closed.emit()],
+		["Map", func(): ui.open_map()],
 		["Save game", func():
 			if main.has_method("save_now"):
 				main.save_now()],
@@ -49,7 +50,7 @@ func _open_settings() -> void:
 func _controls() -> void:
 	clear_content()
 	set_title("Controls")
-	content.add_child(MenuPanel.rich("[b]Move[/b] WASD · [b]Jump[/b] Space · [b]Sprint[/b] Shift · [b]Crouch[/b] Ctrl\n[b]Interact / sit / exit seat[/b] E\n[b]Use[/b] LMB · [b]Alternate[/b] RMB · [b]Reload / tool mode / rotate[/b] R\n[b]Hotbar[/b] 1-8 or mouse wheel\n[b]Build Catalog[/b] Q · [b]Undo spawn[/b] Z\n[b]Quest log[/b] J · [b]Character[/b] Tab\n[b]Health Tonic[/b] H · [b]Mana Draught[/b] G\n[b]Piloting[/b] WASD drive · Space/Ctrl lift · Shift boost · LMB turrets · F lights · V camera", 19))
+	content.add_child(MenuPanel.rich("[b]Move[/b] WASD · [b]Jump[/b] Space · [b]Sprint[/b] Shift · [b]Crouch[/b] Ctrl\n[b]Interact / sit / exit seat[/b] E\n[b]Use[/b] LMB · [b]Alternate[/b] RMB · [b]Reload / tool mode / rotate[/b] R\n[b]Weapons[/b] 1-2 · [b]Tools[/b] 3-4 · [b]Quick items[/b] 5-8 · [b]Swap weapons[/b] X · [b]Cycle[/b] mouse wheel\n[b]Inventory[/b] I (drag weapons onto slots 1-2, items onto 5-8, pouches onto pouch slots)\n[b]Crafting Book[/b] B · [b]Talents[/b] K · [b]Map[/b] M · [b]Take a weapon off the ground[/b] look at it + E\n[b]Build Catalog[/b] Q · [b]Undo spawn[/b] Z\n[b]Quest log[/b] J · [b]Character[/b] Tab\n[b]Health Tonic[/b] H · [b]Mana Draught[/b] G\n[b]Piloting[/b] WASD drive · Space/Ctrl lift · Shift boost · LMB turrets · F lights · V camera", 19))
 	content.add_child(MenuPanel.button("Back", func():
 		clear_content()
 		set_title("Paused")

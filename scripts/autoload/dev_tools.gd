@@ -6,7 +6,9 @@ extends Node
 ##   --quit-frame=N         quit after N frames
 ##   --pos=x,y,z --yaw=deg --pitch=deg   place the player
 ##   --time=0.5             time of day (0..1)
-##   --god --gold=N --unlock-all
+##   --god --gold=N --unlock-all (all parts, one of every weapon, materials, consumables, schematics,
+##                          big pouches and the top Artisan rank)
+##   --loot=N               scatter N rolled weapons around the player (loot testing)
 ##   --test=name            run res://tools/tests/test_<name>.gd (a Node with `func run(main)`)
 ##   --no-intro             skip the welcome popup
 
@@ -88,11 +90,21 @@ func on_game_started(m: Node) -> void:
 	if has("gold"):
 		Game.add_gold(int(arg("gold")))
 	if has("unlock-all"):
+		# five big pouches first so everything fits
+		Game.pouches = ["pouch_void", "pouch_void", "pouch_void", "pouch_ley", "pouch_alchemist"]
+		Game.pouches_changed.emit()
 		for pid in Catalog.PARTS:
 			Game.unlock_part(pid, false)
 			Game.add_parts(pid, 10)
-		for eid in Catalog.EQUIPMENT:
+		for eid in Catalog.WEAPONS:
 			Game.unlock_equipment(eid)
+		for mid in Catalog.MATERIALS + ["ley_key"]:
+			Game.add_item(mid, 10)
+		for cid in Catalog.CONSUMABLES:
+			Game.add_item(cid, 5)
+		for rid in Catalog.schematic_recipes():
+			Game.learn_schematic(rid, false)
+		Game.add_artisan_xp(int(Catalog.ARTISAN_XP[Catalog.ARTISAN_XP.size() - 1]))
 	if has("time"):
 		Game.time_of_day = float(arg("time"))
 	if has("q"):
@@ -142,6 +154,10 @@ func on_game_started(m: Node) -> void:
 		for ol in m.player.camera.get_children():
 			if ol is OutlineOverlay:
 				ol.material.set_shader_parameter("debug_mode", 1)
+	if has("loot"):
+		for i in int(arg("loot", 6)):
+			var a := TAU * i / maxf(float(arg("loot", 6)), 1.0)
+			Pickup.drop_weapon(m.player, m.player.global_position + Vector3(cos(a) * 3.0, 1.5, sin(a) * 3.0), Catalog.roll_weapon(1.5))
 	var pos: Variant = vec3_arg("pos")
 	if pos != null:
 		m.player.teleport(pos, float(arg("yaw", 0.0)), float(arg("pitch", 0.0)))

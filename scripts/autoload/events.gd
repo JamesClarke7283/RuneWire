@@ -2,6 +2,9 @@ extends Node
 ## Global signal bus. Gameplay systems emit here; quests, challenges, UI and audio listen.
 
 signal enemy_killed(enemy_type: String, faction: String, position: Vector3)
+## Fired alongside enemy_killed with what landed the killing blow (weapon kind/base may be "").
+signal enemy_killed_with(enemy_type: String, faction: String, weapon_kind: String, weapon_base: String, elite: bool)
+signal elite_spawned(enemy: Node)
 signal enemy_damaged(enemy: Node, amount: float, position: Vector3, damage_type: String)
 signal item_collected(item_id: String, count: int)
 signal location_reached(location_id: String)
@@ -9,6 +12,7 @@ signal npc_talked(npc_id: String)
 signal part_spawned(part_id: String, part: Node)
 signal part_purchased(part_id: String, count: int)
 signal item_purchased(item_id: String)
+signal item_sold(item_id: String, gold: int)
 signal parts_welded(contraption: Node)
 signal contraption_driven(contraption: Node, meters: float)
 signal contraption_altitude(contraption: Node, altitude: float)
@@ -26,6 +30,23 @@ signal menu_closed(menu_name: String)
 signal boss_started(boss: Node, display_name: String)
 signal boss_ended(boss: Node)
 signal screen_shake(strength: float, duration: float)
+# inventory, loot & crafting
+signal weapon_acquired(weapon: Dictionary)
+signal loadout_changed()
+signal item_crafted(recipe_id: String)
+signal weapon_upgraded(uid: int, level: int)
+signal weapon_salvaged(base: String)
+signal item_used(item_id: String)
+signal chest_opened(chest_id: String, vault: bool)
+signal resource_harvested(item_id: String, count: int)
+signal scavenged(count: int)
+signal weapon_enchanted(uid: int)
+signal pouch_equipped(pouch_id: String)
+signal schematic_learned(recipe_id: String)
+signal talent_learned(talent_id: String, rank: int)
+signal station_opened(station_id: String)
+## The objective tracker's current step changed (text shown on the HUD).
+signal objective_changed(text: String)
 
 
 func toast(text: String, kind: String = "info") -> void:

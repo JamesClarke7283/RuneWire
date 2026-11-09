@@ -21,9 +21,12 @@ var homing_strength: float = 0.0
 var knockback: float = 2.0
 var trail: bool = true
 var kind: String = "orb"   # orb, rivet, bomb, rocket
+var weapon: Dictionary = {} # player weapon stats (perks) carried into the hit
+var pierce: int = 0         # extra enemies a shot passes through
 
 var _age: float = 0.0
 var _mask: int = 0
+var _pierced: Array[RID] = []
 var _visual: MeshInstance3D
 var _light: OmniLight3D
 var _trail: GPUParticles3D
@@ -146,8 +149,10 @@ func _physics_process(delta: float) -> void:
 	var from := global_position
 	var to := from + velocity * delta
 	var q := PhysicsRayQueryParameters3D.create(from, to, _mask)
+	var ex: Array[RID] = _pierced.duplicate()
 	if source is CollisionObject3D:
-		q.exclude = [(source as CollisionObject3D).get_rid()]
+		ex.append((source as CollisionObject3D).get_rid())
+	q.exclude = ex
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if hit:
 		if bounces > 0 and not (hit["collider"] is CharacterBody3D) and not Combat.is_enemy(hit["collider"]):
@@ -180,14 +185,21 @@ func _check_wards() -> void:
 func _impact(hit: Dictionary) -> void:
 	var col: Object = hit["collider"]
 	var info := DamageInfo.make(damage, damage_type, source, hit["position"], velocity.normalized(), knockback, from_player)
+	info.weapon = weapon
 	if damage > 0.0:
 		Combat.damage_hit(hit, info)
+	if pierce > 0 and Combat.is_enemy(col) and splash_radius <= 0.0:
+		pierce -= 1
+		_pierced.append((col as CollisionObject3D).get_rid())
+		global_position = hit["position"] + velocity.normalized() * 0.3
+		VFX.burst(self, hit["position"], color, 6, 4.0, 0.12, 0.3, -6.0, "spark")
+		return
 	_detonate(hit["position"], hit.get("normal", Vector3.UP), col)
 
 
 func _detonate(pos: Vector3, normal: Variant, _col: Object = null) -> void:
 	if splash_radius > 0.0:
-		Combat.explode(self, pos, splash_radius, splash_damage, damage_type, source, from_player, true)
+		Combat.explode(self, pos, splash_radius, splash_damage, damage_type, source, from_player, true, 1.0, weapon)
 	else:
 		var n: Vector3 = normal if normal is Vector3 else Vector3.UP
 		VFX.burst(self, pos + n * 0.05, color, 10, 4.0, 0.14, 0.35, -6.0, "spark", 70.0, n)

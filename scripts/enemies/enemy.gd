@@ -1,7 +1,8 @@
 class_name Enemy
 extends CharacterBody3D
-## Base class for all enemies: stats from Catalog.ENEMIES, damage & resistances, aggro, steering
-## (ground or flying), health bar, loot (gold coins, quest items) and death effects.
+## Base class for all enemies: stats from Catalog.ENEMIES, damage & resistances, weapon perks,
+## aggro, steering (ground or flying), health bar, Champion (elite) variants, loot (gold coins,
+## materials, weapons) and death effects.
 
 const KINDS := {
 	"wisp": "res://scripts/enemies/enemy_wisp.gd",
@@ -17,7 +18,7 @@ const KINDS := {
 
 const HB_SHADER := """
 shader_type spatial;
-render_mode unshaded, cull_disabled, depth_test_disabled, shadows_disabled;
+render_mode unshaded, cull_disabled, depth_test_disabled, shadows_disabled, fog_disabled;
 instance uniform float fill = 1.0;
 instance uniform float show = 0.0;
 void vertex() {
@@ -61,6 +62,22 @@ var hover_height: float = 3.0
 var weak_point: String = ""
 var scale_factor: float = 1.0
 var summons: Array = []
+var elite: bool = false           # Champion: tougher, hits harder, drops better loot
+var last_hit: DamageInfo = null
+var level: int = 1                # scales HP, damage, XP, gold and the level of dropped weapons
+var zone_level: int = 1           # the spawner's area level (the player's level pulls it up)
+
+# status effects: burn (fire damage over time) and chill (slower movement and attacks)
+var _burn_t: float = 0.0
+var _burn_dps: float = 0.0
+var _burn_tick: float = 0.0
+var _burn_weapon: Dictionary = {}
+var _chill_t: float = 0.0
+var _chill: float = 0.0
+var _status_fx_t: float = 0.0
+var _burn_fx: GPUParticles3D
+var _chill_fx: GPUParticles3D
+var _lvl_label: Label3D
 
 var _nodes: Dictionary = {}
 var _hb: MeshInstance3D
@@ -77,11 +94,13 @@ var _world: World
 static var _hb_shader: Shader
 
 
-static func spawn(k: String, w: World, pos: Vector3) -> Enemy:
+static func spawn(k: String, w: World, pos: Vector3, is_elite: bool = false, lvl: int = 1) -> Enemy:
 	if not KINDS.has(k):
 		return null
 	var e: Enemy = load(KINDS[k]).new()
 	e.kind = k
+	e.elite = is_elite
+	e.zone_level = lvl
 	e._world = w
 	w.enemies_root.add_child(e)
 	e.global_position = pos
@@ -104,10 +123,28 @@ func _ready() -> void:
 	collision_mask = 1 | 4 | 8
 	if _world == null:
 		_world = get_tree().get_first_node_in_group("world")
+	if boss:
+		elite = false
+	# level: the area's level, pulled up toward the player's so the valley keeps its bite
+	level = clampi(maxi(zone_level + (0 if boss else randi_range(0, 1)), Game.level - (1 if boss else 2)), 1, Catalog.MAX_LEVEL)
+	if elite:
+		level = mini(level + 2, Catalog.MAX_LEVEL)
+	max_hp *= 1.0 + Catalog.ENEMY_HP_PER_LEVEL * float(level - 1)
+	hp = max_hp
+	if elite:
+		max_hp *= 2.6
+		hp = max_hp
+		move_speed *= 1.1
 	_setup()
+	if elite:
+		scale_factor *= 1.22
+		body_radius *= 1.15
+		body_height *= 1.2
 	_build_collision()
 	_build_model()
 	_build_health_bar()
+	if elite:
+		_build_elite_fx()
 	_wander_target = global_position
 	_last_pos = global_position
 	_side = 1.0 if randf() > 0.5 else -1.0
@@ -118,6 +155,74 @@ func _ready() -> void:
 ## Subclasses set body_height, body_radius, hover_height, scale_factor, weak_point here.
 func _setup() -> void:
 	pass
+
+
+## Damage multiplier for this enemy's attacks (difficulty, level, Champion bonus).
+func power() -> float:
+	return Game.difficulty * (1.35 if elite else 1.0) * (1.0 + Catalog.ENEMY_DMG_PER_LEVEL * float(level - 1))
+
+
+## Level tag colour relative to the player: grey (easy) .. white .. orange .. red (deadly).
+func level_color() -> Color:
+	var d := level - Game.level
+	if d <= -3:
+		return Color(0.7, 0.7, 0.72)
+	if d <= 1:
+		return Color(1.0, 0.97, 0.88)
+	if d <= 4:
+		return Color(1.0, 0.68, 0.25)
+	return Color(1.0, 0.32, 0.28)
+
+
+func display_name() -> String:
+	var n: String = def.get("name", kind)
+	return ("Champion " + n) if elite else n
+
+
+## Champions glow in their faction colour and wear a floating crown label.
+func _build_elite_fx() -> void:
+	var col := Color(0.75, 0.45, 1.0) if faction == "magic" else Color(1.0, 0.6, 0.2)
+	var l := OmniLight3D.new()
+	l.light_color = col
+	l.light_energy = 1.6
+	l.omni_range = 5.0
+	l.position.y = 0.0 if flying else body_height * 0.6
+	l.distance_fade_enabled = true
+	l.distance_fade_begin = 60.0
+	l.distance_fade_length = 15.0
+	add_child(l)
+	var lab := Label3D.new()
+	lab.text = "★ Champion ★"
+	lab.font_size = 40
+	lab.outline_size = 12
+	lab.modulate = Color("ffd84a")
+	lab.outline_modulate = Color(0.2, 0.08, 0.05)
+	lab.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lab.pixel_size = 0.006
+	var f := UIStyle.display_font()
+	if f:
+		lab.font = f
+	lab.position.y = (body_height * 0.5 + 0.85) if flying else body_height * scale_factor + 0.8
+	add_child(lab)
+	var sp := GPUParticles3D.new()
+	sp.amount = 10
+	sp.lifetime = 1.2
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = body_radius * 1.4
+	pm.gravity = Vector3(0, 1.2, 0)
+	pm.initial_velocity_max = 0.3
+	pm.scale_min = 0.12
+	pm.scale_max = 0.22
+	VFX._curves()
+	pm.scale_curve = VFX._scale_curve
+	pm.color = col
+	sp.process_material = pm
+	sp.draw_pass_1 = VFX._quad
+	sp.material_override = VFX.additive_mat("vfx_star")
+	sp.position.y = 0.0 if flying else body_height * 0.5
+	sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(sp)
 
 
 func _build_collision() -> void:
@@ -193,7 +298,7 @@ func _build_health_bar() -> void:
 		_hb_shader.code = HB_SHADER
 	_hb = MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(1.1, 0.13)
+	q.size = Vector2(1.6, 0.17) if elite else Vector2(1.1, 0.13)
 	_hb.mesh = q
 	var m := ShaderMaterial.new()
 	m.shader = _hb_shader
@@ -203,6 +308,23 @@ func _build_health_bar() -> void:
 	_hb.position = Vector3(0, (body_height * 0.5 + 0.5) if flying else body_height * scale_factor + 0.45, 0)
 	add_child(_hb)
 	_hb.set_instance_shader_parameter("show", 0.0)
+	_lvl_label = Label3D.new()
+	_lvl_label.text = "Lv %d" % level
+	_lvl_label.font_size = 44
+	_lvl_label.outline_size = 12
+	_lvl_label.fixed_size = true
+	_lvl_label.modulate = level_color()
+	_lvl_label.outline_modulate = Color(0.08, 0.05, 0.1)
+	_lvl_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_lvl_label.no_depth_test = true
+	_lvl_label.render_priority = 6
+	_lvl_label.pixel_size = 0.0008
+	_lvl_label.position = _hb.position + Vector3(0, 0.24, 0)
+	_lvl_label.visible = false
+	var f := UIStyle.display_font()
+	if f:
+		_lvl_label.font = f
+	add_child(_lvl_label)
 
 
 ## Point to aim at (centre of mass).
@@ -219,12 +341,19 @@ func apply_damage(info: DamageInfo) -> void:
 	var mult := float(resist.get(info.damage_type, 1.0))
 	var amount := info.amount * mult
 	var crit := false
+	var w: Dictionary = info.weapon
+	if not w.is_empty():
+		amount *= float(w.get("vs_magic", 1.0)) if faction == "magic" else float(w.get("vs_tech", 1.0))
+		if not info.proc and randf() < float(w.get("crit_chance", 0.0)):
+			amount *= 2.0
+			crit = true
 	if weak_point != "":
 		var wp := node(weak_point)
 		if wp and info.position.distance_to(wp.global_position) < 0.9 * scale_factor:
 			amount *= 2.0
 			crit = true
 	hp -= amount
+	last_hit = info
 	aggro = true
 	_hb_timer = 4.0
 	_flash_t = 0.12
@@ -246,8 +375,140 @@ func apply_damage(info: DamageInfo) -> void:
 	if target == null:
 		target = get_tree().get_first_node_in_group("player") as Player
 	_on_damaged(info, amount)
+	if not w.is_empty() and info.from_player:
+		_weapon_procs(info, amount, w)
 	if hp <= 0.0:
 		die(info)
+		return
+	if not w.is_empty() and not info.proc:
+		_apply_statuses(w)
+
+
+## Burn and chill from the weapon that hit (its own effect, or a Searing / Rimebound perk).
+func _apply_statuses(w: Dictionary) -> void:
+	var sm := Game.status_mult()
+	if float(w.get("burn", 0.0)) > 0.0 and randf() < float(w.get("burn_chance", 0.0)):
+		apply_burn(float(w["burn"]) * sm, 3.0 * (0.85 + 0.15 * sm), w)
+	if float(w.get("chill", 0.0)) > 0.0 and randf() < float(w.get("chill_chance", 0.0)):
+		apply_chill(float(w["chill"]) * (0.9 + 0.1 * sm), 2.5 * sm)
+
+
+## Sets the foe ablaze: fire damage every half second (fire resistance applies; wisps shrug it off).
+func apply_burn(dps: float, duration: float, w: Dictionary = {}) -> void:
+	if dead or float(resist.get("fire", 1.0)) <= 0.0:
+		return
+	if _burn_t <= 0.0:
+		_burn_tick = 0.25
+	_burn_dps = maxf(_burn_dps if _burn_t > 0.0 else 0.0, dps)
+	_burn_t = maxf(_burn_t, duration)
+	_burn_weapon = w
+	if _burn_fx == null:
+		_burn_fx = _status_particles(Color(1.0, 0.55, 0.15), 3.0, "vfx_spark", 16)
+	_burn_fx.emitting = true
+
+
+## Slows movement (and attacks a little) by `amount` (0..0.8) for `duration` seconds.
+func apply_chill(amount: float, duration: float) -> void:
+	if dead:
+		return
+	var a := clampf(amount, 0.0, 0.8) * (0.5 if boss else 1.0)
+	_chill = maxf(_chill if _chill_t > 0.0 else 0.0, a)
+	_chill_t = maxf(_chill_t, duration)
+	if _chill_fx == null:
+		_chill_fx = _status_particles(Color(0.7, 0.93, 1.0), -0.6, "vfx_star", 10)
+	_chill_fx.emitting = true
+	if not boss:
+		velocity *= 0.5
+
+
+func is_burning() -> bool:
+	return _burn_t > 0.0
+
+
+func is_chilled() -> bool:
+	return _chill_t > 0.0
+
+
+func _tick_statuses(delta: float) -> void:
+	_status_fx_t -= delta
+	if _burn_t > 0.0:
+		_burn_t -= delta
+		_burn_tick -= delta
+		if _burn_tick <= 0.0:
+			_burn_tick = 0.5
+			var p := get_tree().get_first_node_in_group("player") as Player
+			var info := DamageInfo.make(_burn_dps * 0.5, "fire", p, aim_point(), Vector3.UP, 0.0, true)
+			info.weapon = _burn_weapon
+			info.proc = true
+			VFX.burst(self, aim_point(), Color(1.0, 0.5, 0.15), 5, 2.5, 0.12, 0.35, 2.0, "spark")
+			apply_damage(info)
+			if dead:
+				return
+		if _burn_t <= 0.0:
+			_burn_dps = 0.0
+			if _burn_fx:
+				_burn_fx.emitting = false
+	if _chill_t > 0.0:
+		_chill_t -= delta
+		if _status_fx_t <= 0.0:
+			_status_fx_t = 0.4
+			VFX.sparkle(self, aim_point(), Color(0.65, 0.92, 1.0), 3, 0.18)
+		if _chill_t <= 0.0:
+			_chill = 0.0
+			if _chill_fx:
+				_chill_fx.emitting = false
+
+
+## A looping particle cloud around the body for a status (embers rising, frost drifting).
+func _status_particles(col: Color, rise: float, tex: String, amount: int) -> GPUParticles3D:
+	VFX._curves()
+	var p := GPUParticles3D.new()
+	p.amount = amount
+	p.lifetime = 0.8
+	p.local_coords = false
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = body_radius * scale_factor * 0.9
+	pm.gravity = Vector3(0, rise, 0)
+	pm.initial_velocity_min = 0.1
+	pm.initial_velocity_max = 0.6
+	pm.spread = 180.0
+	pm.scale_min = 0.16
+	pm.scale_max = 0.32
+	pm.scale_curve = VFX._scale_curve
+	pm.color = col
+	p.process_material = pm
+	p.draw_pass_1 = VFX._quad
+	p.material_override = VFX.additive_mat(tex)
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.position = Vector3.ZERO if flying else Vector3.UP * body_height * 0.5 * scale_factor
+	add_child(p)
+	return p
+
+
+## Speed multiplier from chill (1 = normal).
+func slow_mult() -> float:
+	return 1.0 - _chill if _chill_t > 0.0 else 1.0
+
+
+## Leech heals the player; Volatile and Arcing perks spawn secondary hits (which never proc again).
+func _weapon_procs(info: DamageInfo, amount: float, w: Dictionary) -> void:
+	var p := get_tree().get_first_node_in_group("player") as Player
+	if p:
+		p.on_weapon_hit(amount, w)
+	if info.proc:
+		return
+	if randf() < float(w.get("volatile", 0.0)):
+		Combat.explode(self, aim_point(), 2.6, maxf(info.amount * 0.6, 8.0), "fire", p, true, false, 0.7, w, true)
+	if randf() < float(w.get("arc_chance", 0.0)):
+		var other := Combat.nearest_enemy(self, aim_point(), 9.0, true, [self])
+		if other:
+			var ap: Vector3 = other.aim_point()
+			VFX.lightning(self, aim_point(), ap, Color(0.45, 0.9, 1.0), 7, 0.5, 0.18)
+			var z := DamageInfo.make(maxf(info.amount * 0.6, 6.0), "shock", p, ap, (ap - aim_point()).normalized(), 1.0, true)
+			z.weapon = w
+			z.proc = true
+			other.apply_damage(z)
 
 
 func _on_damaged(_info: DamageInfo, _amount: float) -> void:
@@ -260,14 +521,29 @@ func die(info: DamageInfo = null) -> void:
 	dead = true
 	hp = 0.0
 	remove_from_group("enemies")
+	for fx in [_burn_fx, _chill_fx]:
+		if fx:
+			fx.emitting = false
+	if _lvl_label:
+		_lvl_label.visible = false
 	collision_layer = 0
 	collision_mask = 0
 	if _hb:
 		_hb.visible = false
 	Events.enemy_killed.emit(kind, faction, global_position)
-	Game.add_xp(int(def.get("xp", 10)))
+	var killer: DamageInfo = info if info else last_hit
+	var wk := ""
+	var wb := ""
+	if killer and killer.from_player and not killer.weapon.is_empty():
+		wk = str(killer.weapon.get("kind", ""))
+		wb = str(killer.weapon.get("base", ""))
+	Events.enemy_killed_with.emit(kind, faction, wk, wb, elite)
+	Game.add_xp(int(round(float(def.get("xp", 10)) * (3 if elite else 1) * (1.0 + Catalog.ENEMY_XP_PER_LEVEL * float(level - 1)))))
 	Game.add_stat("kills")
 	Game.add_stat("kills_" + faction)
+	if elite:
+		Game.add_stat("elites")
+		Events.toast("%s defeated!" % display_name(), "quest")
 	if boss:
 		Game.add_stat("bosses")
 		Events.boss_ended.emit(self)
@@ -283,12 +559,38 @@ func die(info: DamageInfo = null) -> void:
 
 func _drop_loot() -> void:
 	var g: Array = def.get("gold", [3, 6])
-	var gold := randi_range(int(g[0]), int(g[1]))
+	var p := get_tree().get_first_node_in_group("player") as Player
+	var lucky := p != null and p.has_buff("luck")
+	var gold_mult := (1.0 + Catalog.ENEMY_GOLD_PER_LEVEL * float(level - 1)) * Game.gold_mult() * (1.4 if lucky else 1.0)
+	var gold := int(round(randi_range(int(g[0]), int(g[1])) * (3 if elite else 1) * gold_mult))
 	Pickup.drop_coins(self, aim_point(), gold)
+	var luck := Game.loot_luck() + (0.6 if lucky else 0.0)
 	var loot: Dictionary = def.get("loot", {})
 	for item in loot:
-		if randf() < float(loot[item]):
+		for roll in (2 if elite else 1):
+			if randf() < float(loot[item]):
+				Pickup.drop_item(self, aim_point(), item)
+	var boss_loot: Dictionary = def.get("boss_loot", {})
+	for item in boss_loot:
+		for n in int(boss_loot[item]):
 			Pickup.drop_item(self, aim_point(), item)
+	if elite and randf() < 0.22:
+		Pickup.drop_item(self, aim_point(), "ley_key")
+	if randf() < 0.035:
+		Pickup.drop_item(self, aim_point(), ["health_tonic", "mana_draught", "spark_bomb", "frost_bomb", "regen_salve"][randi() % 5])
+	var tier := "boss" if boss else ("elite" if elite else "normal")
+	if randf() < float(Catalog.DROP_CHANCE[tier]) * (1.0 + luck * 0.5):
+		var floor_tier := 3 if boss else (1 if elite else 0)
+		Pickup.drop_weapon(self, aim_point(), Catalog.roll_weapon(float(Catalog.DROP_LUCK[tier]) + luck, floor_tier, faction, "", Catalog.drop_level(level)))
+	# schematics (unknown recipes only) and pouches
+	if randf() < float(Catalog.SCHEMATIC_DROP[tier]):
+		var sch := Game.random_unknown_schematic()
+		if sch != "":
+			Pickup.drop_item(self, aim_point(), Catalog.schematic_id(sch))
+	if boss:
+		Pickup.drop_item(self, aim_point(), ["pouch_rune", "pouch_ley"][randi() % 2])
+	elif elite and randf() < 0.08:
+		Pickup.drop_item(self, aim_point(), ["pouch_cloth", "pouch_leather", "pouch_leather", "pouch_brass", "pouch_scavenger"][randi() % 5])
 
 
 func _death_fx(_info: DamageInfo) -> void:
@@ -353,7 +655,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_anim_t += delta
 	state_t += delta
-	attack_cd -= delta
+	attack_cd -= delta * (1.0 - _chill * 0.5 if _chill_t > 0.0 else 1.0)
 	if _flash_t > 0.0:
 		_flash_t -= delta
 		if _flash_t <= 0.0:
@@ -362,6 +664,12 @@ func _physics_process(delta: float) -> void:
 		_hb_timer -= delta
 		_hb.set_instance_shader_parameter("show", 1.0 if _hb_timer > 0.0 else 0.0)
 		_hb.set_instance_shader_parameter("fill", clampf(hp / max_hp, 0.0, 1.0))
+		if _lvl_label:
+			_lvl_label.visible = _hb_timer > 0.0 or (aggro and target != null and global_position.distance_to(target.global_position) < 30.0)
+	if _burn_t > 0.0 or _chill_t > 0.0:
+		_tick_statuses(delta)
+		if dead:
+			return
 	if target == null or not is_instance_valid(target):
 		target = get_tree().get_first_node_in_group("player") as Player
 	_los_timer -= delta
@@ -458,6 +766,8 @@ func wander(speed: float) -> void:
 
 
 func _move(delta: float) -> void:
+	if _chill_t > 0.0:
+		desired_velocity *= slow_mult()
 	if flying:
 		var ground := _world.ground_y(global_position.x, global_position.z) if _world else 0.0
 		var want_y := maxf(ground, WorldLayout.WATER_LEVEL) + hover_height
@@ -495,7 +805,7 @@ func _move(delta: float) -> void:
 
 # ------------------------------------------------------------------ attack helpers
 func shoot(from: Vector3, to: Vector3, speed: float, dmg: float, dmg_type: String, color: Color, opts: Dictionary = {}) -> Projectile:
-	var o := {"damage": dmg * Game.difficulty, "damage_type": dmg_type, "color": color, "from_player": false, "source": self,
+	var o := {"damage": dmg * power(), "damage_type": dmg_type, "color": color, "from_player": false, "source": self,
 		"size": 0.18, "lifetime": 4.0}
 	o.merge(opts, true)
 	return Projectile.spawn(self, from, (to - from).normalized() * speed, o)
@@ -504,6 +814,6 @@ func shoot(from: Vector3, to: Vector3, speed: float, dmg: float, dmg_type: Strin
 func melee(radius: float, dmg: float, dmg_type: String, knock: float = 6.0) -> bool:
 	if target and not target.dead and target.global_position.distance_to(global_position) < radius:
 		var dir := (target.global_position - global_position).normalized()
-		target.apply_damage(DamageInfo.make(dmg * Game.difficulty, dmg_type, self, aim_point(), dir + Vector3.UP * 0.3, knock))
+		target.apply_damage(DamageInfo.make(dmg * power(), dmg_type, self, aim_point(), dir + Vector3.UP * 0.3, knock))
 		return true
 	return false

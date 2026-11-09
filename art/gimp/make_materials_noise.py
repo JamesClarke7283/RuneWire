@@ -45,13 +45,17 @@ def make_noise():
     c = array.array("f", [(v - mn) / (mx - mn) for v in c])
     _save("noise_cells", c)
 
-    # clouds: soft puffs with clear gaps
+    # clouds: soft billowy fBm, histogram-equalised so its values are spread evenly over
+    # 0..1.  The sky shader thresholds it at (1 - cloud_coverage), so an even spread makes
+    # cloud_coverage behave like "fraction of the sky covered".
     b = field_noise(S, 3, 3, detail=4, seed=9012)
     b2 = field_noise(S, 6, 6, detail=3, seed=9014)
-    b = array.array("f", [smoothstep(0.22, 0.95, 0.8 * b[i] + 0.2 * b2[i]) ** 1.15 for i in range(S * S)])
-    b = field_blur(b, S, S, 3.0)
-    mn, mxv = min(b), max(b)
-    _save("noise_clouds", array.array("f", [(v - mn) / (mxv - mn) for v in b]))
+    b = field_blur(array.array("f", [0.8 * b[i] + 0.2 * b2[i] for i in range(S * S)]), S, S, 2.0)
+    order = sorted(range(S * S), key=b.__getitem__)
+    eq = array.array("f", [0.0]) * (S * S)
+    for rank, i in enumerate(order):
+        eq[i] = rank / (S * S - 1)
+    _save("noise_clouds", eq)
 
     # streaks: tall vertical streaks
     img, L = scratch(S)

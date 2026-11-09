@@ -12,6 +12,7 @@ const TYPE_COLORS := {
 	"fire": Color(1.0, 0.6, 0.2),
 	"shock": Color(0.45, 0.9, 1.0),
 	"kinetic": Color(1.0, 0.92, 0.7),
+	"frost": Color(0.6, 0.9, 1.0),
 	"none": Color(1, 1, 1),
 }
 
@@ -49,7 +50,8 @@ static func is_enemy(n: Object) -> bool:
 
 ## Area damage with linear falloff, physics impulses and the explosion effect.
 static func explode(ctx: Node3D, pos: Vector3, radius: float, damage: float, dmg_type: String, source: Node = null,
-		from_player: bool = false, hurt_player: bool = true, visual_scale: float = 1.0) -> void:
+		from_player: bool = false, hurt_player: bool = true, visual_scale: float = 1.0, weapon: Dictionary = {},
+		is_proc: bool = false) -> void:
 	var space := ctx.get_world_3d().direct_space_state
 	var shape := SphereShape3D.new()
 	shape.radius = radius
@@ -82,6 +84,8 @@ static func explode(ctx: Node3D, pos: Vector3, radius: float, damage: float, dmg
 			(col as Player).apply_damage(pi)
 			continue
 		var info := DamageInfo.make(damage * fall, dmg_type, source, pos, dir, 6.0 * fall, from_player)
+		info.weapon = weapon
+		info.proc = is_proc
 		if col is Contraption:
 			var c := col as Contraption
 			var part2: Part = c.part_from_shape(int(r.get("shape", 0)))

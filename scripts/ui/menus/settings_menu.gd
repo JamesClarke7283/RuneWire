@@ -32,6 +32,7 @@ func build() -> void:
 	_row(grid, "Cartoon outlines", _check(Settings.outlines, func(v): Settings.outlines = v; _apply()))
 	_row(grid, "Grass density", _slider(0.0, 1.5, 0.1, Settings.grass_density, func(v): Settings.grass_density = v; _apply(), "%d%%", 100.0))
 	_row(grid, "Show FPS", _check(Settings.show_fps, func(v): Settings.show_fps = v; _apply()))
+	_row(grid, "Objective tracker", _check(Settings.show_objective, func(v): Settings.show_objective = v; _apply()))
 	_section(grid, "Controls")
 	_row(grid, "Field of view", _slider(65.0, 105.0, 1.0, Settings.fov, func(v): Settings.fov = v; _apply(), "%d°", 1.0))
 	_row(grid, "Mouse sensitivity", _slider(0.03, 0.4, 0.01, Settings.mouse_sensitivity, func(v): Settings.mouse_sensitivity = v; _apply(), "%.2f", 1.0))

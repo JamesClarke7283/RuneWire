@@ -17,6 +17,7 @@ var invert_y: bool = false
 var outlines: bool = true
 var grass_density: float = 1.0
 var show_fps: bool = false
+var show_objective: bool = true   # the objective tracker under the compass
 var volume_master: float = 0.9
 var volume_music: float = 0.55
 var volume_sfx: float = 0.85
@@ -41,6 +42,11 @@ const ACTIONS := {
 	"slot_7": [KEY_7],
 	"slot_8": [KEY_8],
 	"spawn_menu": [KEY_Q],
+	"inventory": [KEY_I],
+	"quick_swap": [KEY_X],
+	"crafting": [KEY_B],
+	"talents": [KEY_K],
+	"map": [KEY_M],
 	"quest_log": [KEY_J],
 	"character": [KEY_TAB],
 	"pause": [KEY_ESCAPE],
@@ -95,6 +101,7 @@ func load_settings() -> void:
 	outlines = cfg.get_value("graphics", "outlines", outlines)
 	grass_density = cfg.get_value("graphics", "grass_density", grass_density)
 	show_fps = cfg.get_value("graphics", "show_fps", show_fps)
+	show_objective = cfg.get_value("gameplay", "show_objective", show_objective)
 	fov = cfg.get_value("controls", "fov", fov)
 	mouse_sensitivity = cfg.get_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	invert_y = cfg.get_value("controls", "invert_y", invert_y)
@@ -125,6 +132,7 @@ func save_settings() -> void:
 	cfg.set_value("graphics", "outlines", outlines)
 	cfg.set_value("graphics", "grass_density", grass_density)
 	cfg.set_value("graphics", "show_fps", show_fps)
+	cfg.set_value("gameplay", "show_objective", show_objective)
 	cfg.set_value("controls", "fov", fov)
 	cfg.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	cfg.set_value("controls", "invert_y", invert_y)

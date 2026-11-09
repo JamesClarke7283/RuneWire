@@ -11,27 +11,39 @@ const TYPES := {
 	"tree_pine": {"vis": 320.0, "col": "trunk", "r": 0.5, "shadow": true},
 	"tree_crystal": {"vis": 260.0, "col": "trunk", "r": 0.45, "shadow": true},
 	"tree_dead": {"vis": 240.0, "col": "trunk", "r": 0.4, "shadow": true},
-	"rock_a": {"vis": 200.0, "col": "rock", "r": 0.7, "shadow": true},
-	"rock_b": {"vis": 220.0, "col": "rock", "r": 1.0, "shadow": true},
-	"rock_c": {"vis": 240.0, "col": "rock", "r": 1.2, "shadow": true},
-	"cliff_a": {"vis": 420.0, "col": "rock", "r": 4.0, "shadow": true},
+	# collision fits the models: spheres for the boulders, a box for the cliff butte, a capsule along the log
+	"rock_a": {"vis": 200.0, "col": "rock", "r": 0.8, "shadow": false},
+	"rock_b": {"vis": 220.0, "col": "rock", "r": 1.2, "shadow": true},
+	"rock_c": {"vis": 240.0, "col": "rock", "r": 1.35, "shadow": true},
+	"cliff_a": {"vis": 420.0, "col": "box", "size": Vector3(9.0, 7.5, 5.0), "off": Vector3(0, 3.5, 0), "shadow": true},
 	"bush_round": {"vis": 120.0, "col": "", "shadow": false},
 	"bush_flower": {"vis": 110.0, "col": "", "shadow": false},
 	"flower_patch": {"vis": 60.0, "col": "", "shadow": false},
 	"mushroom_cluster": {"vis": 70.0, "col": "", "shadow": false},
-	"log_fallen": {"vis": 140.0, "col": "rock", "r": 0.5, "shadow": true},
-	"stump": {"vis": 110.0, "col": "rock", "r": 0.45, "shadow": true},
+	"log_fallen": {"vis": 140.0, "col": "capsule", "r": 0.45, "h": 4.1, "off": Vector3(0, 0.42, 0), "shadow": true},
+	"stump": {"vis": 110.0, "col": "rock", "r": 0.45, "shadow": false},
 }
 
 var world: World
 var instances: Dictionary = {}   # model -> Array[Transform3D]
 var _rng := RandomNumberGenerator.new()
 var _bodies: Dictionary = {}     # chunk key -> StaticBody3D
+var _keep_clear: Array = []       # Vector3(x, z, radius) spots with no trees
 
 
 func build(w: World) -> void:
 	world = w
 	_rng.seed = 90210
+	# keep trees and rocks off the treasure chests and crystal clusters (placed earlier by the POIs,
+	# snapped to flat ground, so use their real positions)
+	_keep_clear = []
+	for n in get_tree().get_nodes_in_group("chests") + get_tree().get_nodes_in_group("harvest_nodes"):
+		var p3: Vector3 = (n as Node3D).global_position
+		if p3.y > w.ground_y(p3.x, p3.z) + 4.0:
+			continue  # sky islands
+		_keep_clear.append(Vector3(p3.x, p3.z, 5.0 if n is TreasureChest else 4.0))
+	var pier: Vector2 = WorldLayout.LAKE_PIER["pos"]
+	_keep_clear.append(Vector3(pier.x, pier.y, float(WorldLayout.LAKE_PIER["clear"])))
 	for k in TYPES:
 		instances[k] = []
 	_scatter()
@@ -56,7 +68,10 @@ func _blocked(x: float, z: float, margin: float = 4.0) -> bool:
 	if Terrain._dist_to_segment(p, WorldLayout.GORGE["a"], WorldLayout.GORGE["b"]) < float(WorldLayout.GORGE["width"]) + 3.0:
 		return true
 	for ring in WorldLayout.RACE_RINGS:
-		if p.distance_to(Vector2(ring.x, ring.z)) < 7.0:
+		if p.distance_to(Vector2(ring.x, ring.y)) < 7.0:   # (x, z, height)
+			return true
+	for k in _keep_clear:
+		if p.distance_to(Vector2(k.x, k.y)) < k.z:
 			return true
 	return false
 
@@ -207,6 +222,20 @@ func _add_collision(key: Vector2i, list: Array, cfg: Dictionary) -> void:
 			cyl.height = 5.0 * s
 			cs.shape = cyl
 			cs.position = t.origin + Vector3.UP * 2.5 * s
+		elif cfg["col"] == "box" or cfg["col"] == "capsule":
+			# oriented with the instance (yaw and tilt); sized by its scale
+			var rot := t.basis.orthonormalized()
+			if cfg["col"] == "box":
+				var bx := BoxShape3D.new()
+				bx.size = (cfg["size"] as Vector3) * s
+				cs.shape = bx
+			else:
+				var cap := CapsuleShape3D.new()
+				cap.radius = float(cfg["r"]) * s
+				cap.height = float(cfg["h"]) * s
+				cs.shape = cap
+				rot = rot * Basis(Vector3.FORWARD, PI / 2.0)   # the capsule's long axis along the log (local X)
+			cs.transform = Transform3D(rot, t.origin + t.basis * (cfg["off"] as Vector3))
 		else:
 			var sph := SphereShape3D.new()
 			sph.radius = float(cfg["r"]) * s

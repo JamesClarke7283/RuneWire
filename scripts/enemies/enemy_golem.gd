@@ -39,8 +39,8 @@ func think(delta: float, dist: float) -> void:
 			var flat := Vector3(tp.x - from.x, 0, tp.z - from.z)
 			var t := clampf(flat.length() / 18.0, 0.6, 2.0)
 			var vel := flat / t + Vector3.UP * (tp.y - from.y + 0.5 * 12.0 * t * t) / t
-			Projectile.spawn(self, from, vel, {"damage": 20.0 * Game.difficulty, "damage_type": "kinetic", "color": Color(0.6, 0.55, 0.5),
-				"kind": "bomb", "size": 0.45, "from_player": false, "source": self, "gravity": 12.0, "splash_radius": 2.5, "splash_damage": 14.0 * Game.difficulty})
+			Projectile.spawn(self, from, vel, {"damage": 20.0 * power(), "damage_type": "kinetic", "color": Color(0.6, 0.55, 0.5),
+				"kind": "bomb", "size": 0.45, "from_player": false, "source": self, "gravity": 12.0, "splash_radius": 2.5, "splash_damage": 14.0 * power()})
 			return
 		steer_to(target.global_position, move_speed)
 	else:
@@ -55,7 +55,7 @@ func _do_slam() -> void:
 	AudioManager.play("golem_slam", p, 4.0)
 	if target and target.global_position.distance_to(p) < 5.0:
 		var dir := (target.global_position - p).normalized()
-		target.apply_damage(DamageInfo.make(28.0 * Game.difficulty, "kinetic", self, p, dir + Vector3.UP * 0.6, 11.0))
+		target.apply_damage(DamageInfo.make(28.0 * power(), "kinetic", self, p, dir + Vector3.UP * 0.6, 11.0))
 	var pl := get_tree().get_first_node_in_group("player") as Player
 	if pl and pl.global_position.distance_to(p) < 18.0:
 		pl.shake(0.7, 0.35)

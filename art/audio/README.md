@@ -5,7 +5,7 @@ scripts in this folder. Nothing is sampled or downloaded. The scripts need numpy
 with Blender's bundled Python from the project root:
 
 ```sh
-env -u LD_LIBRARY_PATH blender --background --factory-startup --python art/audio/make_sfx.py    # 73 SFX, about 20 s
+env -u LD_LIBRARY_PATH blender --background --factory-startup --python art/audio/make_sfx.py    # 118 SFX
 env -u LD_LIBRARY_PATH blender --background --factory-startup --python art/audio/make_music.py  # 3 loops, about 2 min
 env -u LD_LIBRARY_PATH blender --background --factory-startup --python art/audio/qa.py          # previews + SOUNDS.md
 ```

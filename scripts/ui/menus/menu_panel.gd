@@ -163,7 +163,7 @@ static func card(icon: Texture2D, name: String, desc: String, price: int, extra:
 		row.add_child(UIStyle.label(extra, 16, Color("4a3a2a"), "body"))
 	v.add_child(row)
 	if locked_text != "":
-		var ll := UIStyle.label("🔒 " + locked_text, 15, Color("7a2a2a"), "body")
+		var ll := UIStyle.label("Locked: " + locked_text, 15, Color("7a2a2a"), "body")
 		ll.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		ll.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(ll)

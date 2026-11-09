@@ -109,7 +109,10 @@ func _process(delta: float) -> void:
 	var speed := 1.0 / DAY_SECONDS
 	if night > 0.5:
 		speed *= 2.0
-	Game.time_of_day = fmod(Game.time_of_day + delta * speed, 1.0)
+	var t := Game.time_of_day + delta * speed
+	if t >= 1.0 and Game.started:
+		Game.day += 1          # a new day: vendors restock their featured wares
+	Game.time_of_day = fmod(t, 1.0)
 	update_time(delta)
 
 

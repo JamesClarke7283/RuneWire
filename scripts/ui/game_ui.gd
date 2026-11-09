@@ -24,6 +24,27 @@ const TIPS := [
 	"Gold medals pay the most, but every new medal pays out.",
 	"Turrets welded to your vehicle fire where you aim while you hold LMB.",
 	"The Bounty Board by the fountain always has work for you.",
+	"Press I for your Inventory. Drag weapons onto hotbar slots 1 and 2.",
+	"Carry one tech weapon and one magic focus: X swaps between them instantly.",
+	"Champions glow and wear a crown. They drop the best weapons, and sometimes Ley Keys.",
+	"Treasure chests hide all over the valley. Two Ley Vaults float in the sky: build something that flies!",
+	"Harvest teal Ley Crystal clusters and scavenge Gearworks scrap heaps for crafting materials.",
+	"Five crafting stations ring the plaza: Workbench, Forge, Alchemist's Table, Enchanter's Altar and Loom.",
+	"Sell weapons you've outgrown to any vendor. Favourite (★) the ones you want to keep safe.",
+	"Your pack has limited room. Equip up to five pouches [I] to carry more; sew better ones at the Loom.",
+	"Mine copper and iron veins in the hills, then smelt the ore into ingots at the Forge.",
+	"Glowcaps glow in the woods, sunpetals bloom on the southern flats and reeds line the lake shore.",
+	"Press B for the Crafting Book. Track a recipe and the objective tracker leads you to its materials.",
+	"Every level gives a talent point: press K to spend it.",
+	"Look at a weapon on the ground and press E to wield it right away; walk over it to stash it instead.",
+	"Burning foes take fire damage over time; chilled foes move and attack more slowly.",
+	"Schematics teach new recipes. Vaults always hold one you don't know yet.",
+	"Higher Artisan ranks unlock recipes and make crafted weapons roll rarer.",
+	"The Enchanter's Altar rerolls a weapon's perks, or infuses it all the way up to Epic.",
+	"Foes show their level. Orange and red ones hit much harder than you'd like.",
+	"Every five levels you earn a milestone cache: gold, a Rare weapon and a schematic.",
+	"Press M for the map. Every new region you discover pays XP and gets its name on the map.",
+	"Touch a ley stone to attune it, then fast-travel there from the map [M].",
 ]
 
 
@@ -46,9 +67,9 @@ func _ready() -> void:
 	add_child(menu_layer)
 	toast_box = VBoxContainer.new()
 	toast_box.name = "Toasts"
-	toast_box.custom_minimum_size = Vector2(660, 0)
-	UIStyle.anchor(toast_box, Control.PRESET_CENTER_TOP, Vector2(-330, 118))
+	toast_box.custom_minimum_size = Vector2(430, 0)
 	toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_layout_toasts()
 	toast_box.add_theme_constant_override("separation", 6)
 	add_child(toast_box)
 	Events.notify.connect(_on_toast)
@@ -137,7 +158,7 @@ func on_game_started(p: Player) -> void:
 func show_intro() -> void:
 	var d := InfoPopup.new()
 	d.title_text = "Welcome to Emberwick"
-	d.body_text = "[b]Emberwick[/b] is a valley town of artificers who fuse [color=#9a66ff]rune-magic[/color] with [color=#d9a441]clockwork[/color]. Lately the ley lines have gone sour: the [color=#9a66ff]Hollow Choir[/color] haunts the woods and the shrine, and the rogue [color=#ff9a3c]Cogwork Legion[/color] stomps around the old Gearworks.\n\nYou're the new Runewright apprentice. Take [b]quests[/b] and [b]challenges[/b] to earn [color=#ffc93c]gold[/color], spend it on parts, spells and weapons, and [b]build[/b] whatever wonderful contraption the job needs.\n\n[b]Start by talking to Master Artificer Odda[/b] (north side of the plaza, look for the [color=#ffc93c]![/color]).\n\n[color=#3a2a1e][b]Controls[/b][/color]\nWASD move · Space jump · Shift sprint · Ctrl crouch · E interact\n1-8 / wheel switch tools · LMB use · RMB alternate · R reload / tool mode\nQ build catalog · J quest log · Tab character · Z undo spawn · H/G tonics · Esc menu"
+	d.body_text = "[b]Emberwick[/b] is a valley town of artificers who fuse [color=#9a66ff]rune-magic[/color] with [color=#d9a441]clockwork[/color]. Lately the ley lines have gone sour: the [color=#9a66ff]Hollow Choir[/color] haunts the woods and the shrine, and the rogue [color=#ff9a3c]Cogwork Legion[/color] stomps around the old Gearworks.\n\nYou're the new Runewright apprentice. Take [b]quests[/b] and [b]challenges[/b] to earn [color=#ffc93c]gold[/color], spend it on parts, spells and weapons, and [b]build[/b] whatever wonderful contraption the job needs.\n\n[b]Start by talking to Master Artificer Odda[/b] (north side of the plaza, look for the [color=#ffc93c]![/color]). The [b]Objective[/b] tracker under the compass always shows your next step.\n\nGather ore, herbs, reeds and crystals, and [b]craft[/b] at the five stations around the plaza. Wear up to five [b]pouches[/b] to carry more. Every level brings a [b]talent point[/b].\n\n[color=#3a2a1e][b]Controls[/b][/color]\nWASD move · Space jump · Shift sprint · Ctrl crouch · E interact\n1-2 weapons · 3-4 tools · 5-8 quick items · X swap weapons · wheel cycle · LMB use · RMB alternate · R reload / tool mode\n[b]I inventory[/b] · [b]B crafting book[/b] · [b]K talents[/b] · Q build catalog · J quest log · Tab character · Z undo spawn · H/G tonics · Esc menu"
 	d.button_text = "Let's tinker!"
 	open_menu(d)
 
@@ -194,6 +215,7 @@ func open_menu(m: Control) -> void:
 		player.input_enabled = false
 	get_tree().paused = true
 	hud.visible = player != null
+	_layout_toasts()
 	AudioManager.play_ui("ui_open")
 	Events.menu_opened.emit(m.name)
 
@@ -204,6 +226,7 @@ func close_menu(resume: bool = true) -> void:
 		Events.menu_closed.emit(current_menu.name)
 		AudioManager.play_ui("ui_close")
 	current_menu = null
+	_layout_toasts()
 	if resume:
 		get_tree().paused = false
 		if player and main_menu == null:
@@ -241,6 +264,92 @@ func open_catalog() -> void:
 	open_menu(c)
 
 
+func open_inventory() -> void:
+	var inv := InventoryMenu.new()
+	inv.ui = self
+	open_menu(inv)
+	AudioManager.play_ui("ui_bag", -2.0)
+
+
+func open_workbench() -> void:
+	open_station("workbench")
+
+
+## A crafting station's screen (workbench, forge, alchemy, altar, loom) or "field": the Crafting Book.
+func open_station(station: String) -> void:
+	var m: CraftingMenu = WorkbenchMenu.new() if station == "workbench" else CraftingMenu.new()
+	m.station = station
+	m.ui = self
+	open_menu(m)
+
+
+func open_crafting_book() -> void:
+	open_station("field")
+
+
+func open_talents() -> void:
+	var t := TalentMenu.new()
+	t.ui = self
+	open_menu(t)
+
+
+func open_map() -> void:
+	var m := MapMenu.new()
+	m.ui = self
+	open_menu(m)
+	AudioManager.play_ui("ui_bag", -6.0)
+
+
+## Why the player can't fast-travel to `id` right now ("" = they can).
+func travel_block(id: String) -> String:
+	if not WorldLayout.WAYPOINTS.has(id):
+		return "Pick a place to travel to"
+	if not Game.waypoints.has(id):
+		return "Touch that ley stone first to attune it"
+	if player == null or player.dead:
+		return "You can't travel right now"
+	if player.piloting:
+		return "Step out of your vehicle first"
+	if Challenges.running != "":
+		return "Finish (or leave) the challenge first"
+	if foes_near(player.global_position, 30.0):
+		return "Foes are hunting you: deal with them first"
+	var a: Vector2 = WorldLayout.WAYPOINTS[id]["arrive"]
+	if Vector2(player.global_position.x, player.global_position.z).distance_to(a) < 12.0:
+		return "You're already here"
+	return ""
+
+
+func foes_near(pos: Vector3, radius: float) -> bool:
+	for e in get_tree().get_nodes_in_group("enemies"):
+		var en := e as Enemy
+		if en and not en.dead and en.aggro and en.global_position.distance_to(pos) < radius:
+			return true
+	return false
+
+
+## Ley travel: close the map and step out beside the chosen stone (or the plaza fountain).
+func fast_travel(id: String) -> bool:
+	var why := travel_block(id)
+	if why != "":
+		AudioManager.play_ui("ui_error")
+		Events.toast(why, "warn")
+		return false
+	var w := get_tree().get_first_node_in_group("world") as World
+	var wp: Dictionary = WorldLayout.WAYPOINTS[id]
+	var a: Vector2 = wp["arrive"]
+	var d: Vector2 = (wp["pos"] as Vector2) - a
+	close_menu()
+	VFX.sparkle(player, player.global_position + Vector3.UP, Color(0.3, 0.95, 0.85), 24, 0.5)
+	player.teleport(w.ground_point(a.x, a.y, 0.3), rad_to_deg(atan2(-d.x, -d.y)), 0.0)
+	VFX.ring(player, player.global_position + Vector3.UP * 0.2, Color(0.3, 0.95, 0.85), 3.5, 0.7)
+	VFX.sparkle(player, player.global_position + Vector3.UP, Color(0.3, 0.95, 0.85), 30, 0.5)
+	AudioManager.play_2d("spell_arcane_cast", -4.0, 0.75, 0.0)
+	Game.add_stat("travels")
+	Events.toast("You step out of the ley line at %s" % wp["name"], "info")
+	return true
+
+
 func open_challenge(id: String, runner: ChallengeRunner) -> void:
 	var c := ChallengeMenu.new()
 	c.challenge_id = id
@@ -266,6 +375,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif not is_menu_open() and not player.piloting:
 			open_catalog()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("inventory"):
+		if is_menu_open() and current_menu is InventoryMenu:
+			close_menu()
+		elif not is_menu_open():
+			open_inventory()
+		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("quest_log"):
 		if is_menu_open() and current_menu is QuestLogMenu:
 			close_menu()
@@ -278,6 +393,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif not is_menu_open():
 			open_menu(CharacterMenu.new())
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("crafting"):
+		if is_menu_open() and current_menu is CraftingMenu:
+			close_menu()
+		elif not is_menu_open():
+			open_crafting_book()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("talents"):
+		if is_menu_open() and current_menu is TalentMenu:
+			close_menu()
+		elif not is_menu_open():
+			open_talents()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("map"):
+		if is_menu_open() and current_menu is MapMenu:
+			close_menu()
+		elif not is_menu_open():
+			open_map()
+		get_viewport().set_input_as_handled()
 
 
 # ------------------------------------------------------------------ toasts
@@ -285,12 +418,32 @@ const TOAST_COLORS := {
 	"gold": Color("ffc93c"), "quest": Color("39d5c4"), "quest_done": Color("ffd84a"), "levelup": Color("ffd84a"),
 	"warn": Color("ff7a5c"), "unlock": Color("b48cff"), "item": Color("8fe07a"), "save": Color("9fb0d8"),
 	"tool": Color("f2b84e"), "info": Color("f3e3bf"),
+	"rarity_0": Color("d9d2c0"), "rarity_1": Color("6fdc6a"), "rarity_2": Color("4d9dff"),
+	"rarity_3": Color("b56cff"), "rarity_4": Color("ffa63c"),
 }
 
 
+## Toasts stack on the left under the gold and pack counters in play (clear of the compass, the
+## objective tracker and the banners), and in the top-right corner while a menu covers the screen.
+func _layout_toasts() -> void:
+	if toast_box == null:
+		return
+	if is_menu_open():
+		UIStyle.anchor(toast_box, Control.PRESET_TOP_RIGHT, Vector2(-446, 8))
+	else:
+		UIStyle.anchor(toast_box, Control.PRESET_TOP_LEFT, Vector2(22, 130))
+	for pc in toast_box.get_children():
+		var l := pc.get_child(0) as Label if pc.get_child_count() > 0 else null
+		if l:
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+
+
 func _on_toast(text: String, kind: String) -> void:
-	if toast_box.get_child_count() > 5:
-		toast_box.get_child(0).queue_free()
+	var max_toasts := 3 if is_menu_open() else 5
+	while toast_box.get_child_count() >= max_toasts:
+		var old := toast_box.get_child(0)
+		toast_box.remove_child(old)
+		old.queue_free()
 	var pc := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.08, 0.07, 0.13, 0.82)
@@ -305,13 +458,13 @@ func _on_toast(text: String, kind: String) -> void:
 	pc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var l := UIStyle.label(text, 19, TOAST_COLORS.get(kind, UIStyle.PARCHMENT), "ui", 0)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	pc.add_child(l)
 	toast_box.add_child(pc)
 	pc.modulate.a = 0.0
 	var tw := pc.create_tween()
 	tw.tween_property(pc, "modulate:a", 1.0, 0.2)
-	tw.tween_interval(3.2 if kind not in ["quest", "quest_done", "levelup", "unlock"] else 4.5)
+	tw.tween_interval(3.2 if kind not in ["quest", "quest_done", "levelup", "unlock", "rarity_2", "rarity_3", "rarity_4"] else 4.5)
 	tw.tween_property(pc, "modulate:a", 0.0, 0.5)
 	tw.tween_callback(pc.queue_free)
 	match kind:

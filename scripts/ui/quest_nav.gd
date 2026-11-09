@@ -6,7 +6,25 @@ const KILL_AREAS := {
 	"drone": "foundry", "crawler": "foundry", "sentry": "foundry", "ironclad": "foundry",
 	"faction:magic": "shrine", "faction:tech": "foundry",
 }
-const ITEM_AREAS := {"ember_essence": "woods", "scrap_gear": "foundry", "rune_shard": "shrine"}
+const ITEM_AREAS := {"ember_essence": "woods", "scrap_gear": "foundry", "rune_shard": "shrine", "shade_silk": "woods",
+	"clockwork_core": "foundry", "ley_crystal": "woods"}
+
+
+## Nearest node of a group to the player, optionally filtered (e.g. unopened chests).
+static func nearest_in_group(tree: SceneTree, group: String, filter: Callable = Callable()) -> Variant:
+	var player := tree.get_first_node_in_group("player") as Node3D
+	if player == null:
+		return null
+	var best: Node3D = null
+	var best_d := INF
+	for n in tree.get_nodes_in_group(group):
+		if filter.is_valid() and not bool(filter.call(n)):
+			continue
+		var d := (n as Node3D).global_position.distance_to(player.global_position)
+		if d < best_d:
+			best_d = d
+			best = n
+	return best.global_position if best else null
 
 
 static func area_pos(area: String) -> Vector3:
@@ -70,4 +88,42 @@ static func target_for(q: String, tree: SceneTree) -> Variant:
 				return null
 			"talk":
 				return npc_pos(tree, t)
+			"open_chest":
+				return nearest_in_group(tree, "chests", func(c): return not c.opened and c.vault == (t == "vault"))
+			"harvest":
+				var kinds := _harvest_kinds(t)
+				return nearest_in_group(tree, "harvest_nodes", func(h): return h.kind in kinds and h.available())
+			"scavenge":
+				return nearest_in_group(tree, "harvest_nodes", func(h): return h.kind == "scrap" and h.available())
+			"craft", "upgrade", "enchant":
+				var st := "workbench"
+				if t.begins_with("station:"):
+					st = t.substr(8)
+				elif Catalog.RECIPES.has(t):
+					st = str(Catalog.recipe(t)["station"])
+				elif t == "pouch":
+					st = "loom"
+				elif o["type"] == "enchant":
+					st = "altar"
+				return nearest_in_group(tree, "stations", func(s): return s.station == st)
+			"pouches", "talent", "level", "artisan", "learn", "equip":
+				continue
+			"kill_elite":
+				return nearest_in_group(tree, "enemies", func(e): return e.elite and not e.dead)
 	return null
+
+
+## HarvestNode kinds that yield what a harvest objective wants (item id, "ore", "herb" or "any").
+static func _harvest_kinds(target: String) -> Array:
+	match target:
+		"ore":
+			return ["ore_copper", "ore_iron"]
+		"herb":
+			return ["glowcap", "sunpetal"]
+		"", "any":
+			return ["crystal", "ore_copper", "ore_iron", "glowcap", "sunpetal", "reeds"]
+	var out := []
+	for k in Catalog.HARVEST:
+		if str(Catalog.HARVEST[k].get("item", "")) == target:
+			out.append(k)
+	return out
